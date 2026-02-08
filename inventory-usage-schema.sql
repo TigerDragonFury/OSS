@@ -244,7 +244,7 @@ SELECT
     er.total_cost,
     er.old_equipment_disposition,
     w.name as warehouse_name,
-    e.name as replaced_by_employee
+    e.full_name as replaced_by_employee
 FROM equipment_replacements er
 LEFT JOIN vessels v ON v.id = er.vessel_id
 LEFT JOIN warehouses w ON w.id = er.warehouse_id

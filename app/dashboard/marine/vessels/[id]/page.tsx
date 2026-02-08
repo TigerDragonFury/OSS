@@ -98,17 +98,66 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
   const { data: overhaulExpenses } = useQuery({
     queryKey: ['vessel_overhaul_expenses', resolvedParams.id],
     queryFn: async () => {
+      // First get all overhaul project IDs for this vessel
+      const { data: projects } = await supabase
+        .from('vessel_overhaul_projects')
+        .select('id')
+        .eq('vessel_id', resolvedParams.id)
+      
+      if (!projects || projects.length === 0) return []
+      
+      const projectIds = projects.map(p => p.id)
+      
+      // Then get expenses for those overhaul projects
       const { data, error } = await supabase
         .from('expenses')
         .select(`
           *,
-          vessel_overhaul_projects!inner(project_name, vessel_id)
+          vessel_overhaul_projects(project_name)
         `)
-        .eq('vessel_overhaul_projects.vessel_id', resolvedParams.id)
-        .in('project_type', ['overhaul', 'vessel'])
+        .in('project_id', projectIds)
+        .eq('project_type', 'overhaul')
         .order('date', { ascending: false })
       if (error) throw error
+      return data || []
+    }
+  })
+
+  const { data: vesselRentals } = useQuery({
+    queryKey: ['vessel_rentals', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vessel_rentals')
+        .select('*')
+        .eq('vessel_id', resolvedParams.id)
+        .order('start_date', { ascending: false })
+      if (error) throw error
       return data
+    }
+  })
+
+  const { data: rentalPayments } = useQuery({
+    queryKey: ['vessel_rental_payments', resolvedParams.id],
+    queryFn: async () => {
+      // Get all rental IDs for this vessel
+      const { data: rentals } = await supabase
+        .from('vessel_rentals')
+        .select('id')
+        .eq('vessel_id', resolvedParams.id)
+      
+      if (!rentals || rentals.length === 0) return []
+      
+      const rentalIds = rentals.map(r => r.id)
+      
+      // Get payments for those rentals
+      const { data, error } = await supabase
+        .from('rental_payments')
+        .select('*')
+        .in('rental_id', rentalIds)
+        .eq('status', 'completed')
+        .order('payment_date', { ascending: false })
+      if (error) throw error
+      return data || []
     }
   })
 
@@ -166,13 +215,17 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
 
   const totalEquipmentSales = equipmentSales?.reduce((sum, sale) => sum + (sale.sale_price || 0), 0) || 0
   const totalScrapSales = scrapSales?.reduce((sum, sale) => sum + (sale.total_amount || 0), 0) || 0
+  const totalRentalIncome = rentalPayments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0
+  const totalRevenue = totalEquipmentSales + totalScrapSales + totalRentalIncome
+  
   const totalMovementCosts = movements?.reduce((sum, mov) => sum + (mov.cost || 0), 0) || 0
   const vesselExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
   const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
   const totalInventoryCost = inventoryUsage?.reduce((sum, item) => sum + (item.quantity_used * item.unit_cost), 0) || 0
   const totalReplacementCost = equipmentReplacements?.reduce((sum, item) => sum + (item.replacement_cost || 0) + (item.labor_cost || 0), 0) || 0
   const totalExpenses = vesselExpenses + totalOverhaulExpenses + totalInventoryCost + totalReplacementCost
-  const netProfitLoss = totalEquipmentSales + totalScrapSales - (vessel.purchase_price || 0) - totalMovementCosts - totalExpenses
+  const totalCosts = (vessel.purchase_price || 0) + totalMovementCosts + totalExpenses
+  const netProfitLoss = totalRevenue - totalCosts
 
   return (
     <div className="space-y-6">
@@ -224,19 +277,19 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
           <div>
             <p className="text-sm text-gray-600">Total Revenue</p>
             <p className="text-lg font-semibold text-green-600">
-              +{(totalEquipmentSales + totalScrapSales).toLocaleString()} AED
+              +{totalRevenue.toLocaleString()} AED
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Equipment: {totalEquipmentSales.toLocaleString()} | Scrap: {totalScrapSales.toLocaleString()}
+              Equipment: {totalEquipmentSales.toLocaleString()} | Scrap: {totalScrapSales.toLocaleString()} | Rentals: {totalRentalIncome.toLocaleString()}
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Total Costs</p>
             <p className="text-lg font-semibold text-red-600">
-              -{((vessel.purchase_price || 0) + totalMovementCosts + totalExpenses).toLocaleString()} AED
+              -{totalCosts.toLocaleString()} AED
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Movements: {totalMovementCosts.toLocaleString()} | Operations: {totalExpenses.toLocaleString()}
+              Purchase: {(vessel.purchase_price || 0).toLocaleString()} | Movements: {totalMovementCosts.toLocaleString()} | Operations: {totalExpenses.toLocaleString()}
             </p>
           </div>
           <div>
@@ -247,25 +300,55 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        {/* Cost Breakdown */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Operational Cost Breakdown</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-gray-600">Vessel Expenses</p>
-              <p className="font-semibold text-gray-900">{vesselExpenses.toLocaleString()} AED</p>
+        {/* Financial Breakdown */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Revenue Breakdown */}
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <h4 className="text-sm font-semibold text-green-700 mb-3">Revenue Breakdown</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-700">Equipment Sales:</span>
+                <span className="font-semibold text-gray-900">{totalEquipmentSales.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Scrap Sales:</span>
+                <span className="font-semibold text-gray-900">{totalScrapSales.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Rental Income:</span>
+                <span className="font-semibold text-gray-900">{totalRentalIncome.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-green-300">
+                <span className="font-semibold text-green-800">Total Revenue:</span>
+                <span className="font-bold text-green-800">{totalRevenue.toLocaleString()} AED</span>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-600">Overhaul Costs</p>
-              <p className="font-semibold text-gray-900">{totalOverhaulExpenses.toLocaleString()} AED</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Parts & Inventory</p>
-              <p className="font-semibold text-gray-900">{totalInventoryCost.toLocaleString()} AED</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Equipment Replacements</p>
-              <p className="font-semibold text-gray-900">{totalReplacementCost.toLocaleString()} AED</p>
+          </div>
+          
+          {/* Cost Breakdown */}
+          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+            <h4 className="text-sm font-semibold text-red-700 mb-3">Operational Cost Breakdown</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-700">Vessel Expenses:</span>
+                <span className="font-semibold text-gray-900">{vesselExpenses.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Overhaul Costs:</span>
+                <span className="font-semibold text-gray-900">{totalOverhaulExpenses.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Parts & Inventory:</span>
+                <span className="font-semibold text-gray-900">{totalInventoryCost.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Equipment Replacements:</span>
+                <span className="font-semibold text-gray-900">{totalReplacementCost.toLocaleString()} AED</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-red-300">
+                <span className="font-semibold text-red-800">Total Operations:</span>
+                <span className="font-bold text-red-800">{totalExpenses.toLocaleString()} AED</span>
+              </div>
             </div>
           </div>
         </div>
@@ -277,6 +360,7 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
             {[
               { id: 'overview', name: 'Overview' },
               { id: 'overhauls', name: 'Overhaul Projects' },
+              { id: 'rentals', name: 'Rentals & Income' },
               { id: 'equipment', name: 'Equipment Sales' },
               { id: 'scrap', name: 'Scrap Sales' },
               { id: 'movements', name: 'Movements' },
@@ -344,6 +428,83 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
 
           {activeTab === 'expenses' && (
             <ExpensesTab vesselId={resolvedParams.id} expenses={overhaulExpenses || []} />
+          )}
+
+          {activeTab === 'rentals' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Vessel Rentals & Income</h3>
+                  <p className="text-sm text-gray-600">Rental history and payments received</p>
+                </div>
+                {totalRentalIncome > 0 && (
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Total Rental Income</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {totalRentalIncome.toLocaleString()} AED
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!vesselRentals || vesselRentals.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No rental history for this vessel</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {vesselRentals.map((rental: any) => (
+                    <div key={rental.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-gray-900">
+                              {rental.customer_name || 'N/A'}
+                            </h4>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              rental.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                              rental.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {(rental.status || '').toUpperCase()}
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              rental.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                              rental.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                              rental.payment_status === 'overdue' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {(rental.payment_status || '').toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-600">Period</p>
+                              <p className="font-medium text-gray-900">
+                                {new Date(rental.start_date).toLocaleDateString()} - {rental.end_date ? new Date(rental.end_date).toLocaleDateString() : 'Ongoing'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Daily Rate</p>
+                              <p className="font-medium text-gray-900">{(rental.daily_rate || 0).toLocaleString()} AED/day</p>
+                            </div>
+                          </div>
+                          {rental.notes && (
+                            <p className="text-sm text-gray-600 mt-2">{rental.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-sm text-gray-600">Total Amount</p>
+                          <p className="text-xl font-bold text-green-600">
+                            {(rental.total_amount || 0).toLocaleString()} AED
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === 'overhauls' && (

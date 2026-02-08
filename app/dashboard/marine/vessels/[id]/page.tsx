@@ -104,19 +104,23 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
         .select('id')
         .eq('vessel_id', resolvedParams.id)
       
+      console.log('Overhaul projects for vessel:', projects)
+      
       if (!projects || projects.length === 0) return []
       
       const projectIds = projects.map(p => p.id)
+      console.log('Project IDs:', projectIds)
       
       // Then get expenses for those overhaul projects (both 'vessel' and 'overhaul' types)
       const { data, error } = await supabase
         .from('expenses')
-        .select(`
-          *,
-          vessel_overhaul_projects(project_name)
-        `)
+        .select('*')
         .in('project_id', projectIds)
         .order('date', { ascending: false })
+      
+      console.log('Overhaul expenses raw data:', data)
+      console.log('Overhaul expenses error:', error)
+      
       if (error) throw error
       return data || []
     }

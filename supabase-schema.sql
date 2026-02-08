@@ -264,11 +264,11 @@ CREATE TABLE IF NOT EXISTS land_scrap_sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     land_id UUID REFERENCES land_purchases(id),
     sale_date DATE,
-    tonnage DECIMAL(15, 2),
-    price_per_ton DECIMAL(15, 2),
+    material_type VARCHAR(100),
+    quantity_kg DECIMAL(15, 2),
+    price_per_kg DECIMAL(15, 2),
     total_amount DECIMAL(15, 2),
     buyer_name VARCHAR(255),
-    scrap_type VARCHAR(100),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );

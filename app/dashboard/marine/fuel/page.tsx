@@ -7,7 +7,7 @@ async function getFuelRecords() {
   
   const { data, error } = await supabase
     .from('fuel_records')
-    .select('*, vessels(vessel_name)')
+    .select('*, vessels(name)')
     .order('refuel_date', { ascending: false })
   
   if (error) {
@@ -148,7 +148,7 @@ export default async function FuelRecordsPage() {
                 <tr key={record.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {record.vessels?.vessel_name || 'N/A'}
+                      {record.vessels?.name || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

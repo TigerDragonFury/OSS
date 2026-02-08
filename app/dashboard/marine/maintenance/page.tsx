@@ -6,8 +6,8 @@ async function getMaintenanceRecords() {
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('maintenance_records')
-    .select('*, vessels(vessel_name)')
+    .from('maintenance_schedules')
+    .select('*, vessels(name)')
     .order('scheduled_date', { ascending: false })
   
   if (error) {
@@ -104,7 +104,7 @@ export default async function MaintenancePage() {
                 <tr key={record.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {record.vessels?.vessel_name || 'N/A'}
+                      {record.vessels?.name || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

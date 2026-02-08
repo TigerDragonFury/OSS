@@ -7,7 +7,7 @@ async function getPayments() {
   
   const { data, error } = await supabase
     .from('rental_payments')
-    .select('*, rentals(*, vessels(vessel_name), customers(company_name))')
+    .select('*, vessel_rentals(*, vessels(name), customers(company_name))')
     .order('payment_date', { ascending: false })
   
   if (error) {
@@ -151,12 +151,12 @@ export default async function PaymentsPage() {
                 <tr key={payment.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {payment.rentals?.customers?.company_name || 'N/A'}
+                      {payment.vessel_rentals?.customers?.company_name || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {payment.rentals?.vessels?.vessel_name || 'N/A'}
+                      {payment.vessel_rentals?.vessels?.name || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

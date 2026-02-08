@@ -7,7 +7,7 @@ async function getCrewAssignments() {
   
   const { data, error } = await supabase
     .from('crew_assignments')
-    .select('*, vessels(vessel_name), employees(full_name, position)')
+    .select('*, vessels(name), employees(full_name, position)')
     .order('assignment_date', { ascending: false })
   
   if (error) {
@@ -155,7 +155,7 @@ export default async function CrewAssignmentsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {assignment.vessels?.vessel_name || 'N/A'}
+                      {assignment.vessels?.name || 'N/A'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

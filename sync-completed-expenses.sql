@@ -42,9 +42,29 @@ WHERE ot.status = 'completed'
       AND e.description LIKE CONCAT('%', ot.task_name, '%')
   );
 
+-- Update total_spent for all overhaul projects based on actual expenses
+UPDATE vessel_overhaul_projects vop
+SET total_spent = COALESCE((
+  SELECT SUM(e.amount)
+  FROM expenses e
+  WHERE e.project_id = vop.id
+    AND e.project_type IN ('vessel', 'overhaul')
+), 0),
+updated_at = NOW();
+
 -- Show results
 SELECT 
-  COUNT(*) as expenses_created,
+  'Expenses Created' as metric,
+  COUNT(*) as count,
   SUM(amount) as total_amount
 FROM expenses 
-WHERE description LIKE '%(Completed)%' OR description LIKE '%(Auto-generated)%';
+WHERE description LIKE '%(Completed)%' OR description LIKE '%(Auto-generated)%'
+
+UNION ALL
+
+SELECT 
+  'Projects Updated' as metric,
+  COUNT(*) as count,
+  SUM(total_spent) as total_amount
+FROM vessel_overhaul_projects
+WHERE total_spent > 0;

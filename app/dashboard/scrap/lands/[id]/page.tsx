@@ -32,7 +32,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
         .from('land_equipment')
         .select('*')
         .eq('land_id', resolvedParams.id)
-        .order('extraction_date', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) throw error
       return data
     }
@@ -73,7 +73,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
     )
   }
 
-  const totalEquipmentValue = equipmentSales?.reduce((sum, sale) => sum + (sale.value || 0), 0) || 0
+  const totalEquipmentValue = equipmentSales?.reduce((sum, sale) => sum + (sale.sale_price || sale.estimated_value || 0), 0) || 0
   const totalScrapSales = scrapSales?.reduce((sum, sale) => sum + (sale.total_amount || 0), 0) || 0
   const totalExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
   const netProfitLoss = totalEquipmentValue + totalScrapSales - (land.purchase_price || 0) - totalExpenses
@@ -301,12 +301,12 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment Name</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Extraction Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Condition</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estimated Value</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Info</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -322,28 +322,38 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                       equipmentSales?.map((equipment) => (
                         <tr key={equipment.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {equipment.equipment_type}
+                            {equipment.equipment_name}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {equipment.description || 'N/A'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {equipment.extraction_date ? new Date(equipment.extraction_date).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {equipment.quantity || 1}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                            {equipment.condition || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {equipment.value?.toLocaleString() || 0} AED
+                            {equipment.estimated_value?.toLocaleString() || 0} AED
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 text-xs rounded-full ${
-                              equipment.status === 'sold' ? 'bg-green-100 text-green-800' :
-                              equipment.status === 'in_stock' ? 'bg-blue-100 text-blue-800' :
+                              equipment.status === 'sold_as_is' ? 'bg-green-100 text-green-800' :
+                              equipment.status === 'available' ? 'bg-blue-100 text-blue-800' :
+                              equipment.status === 'scrapped' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
                               {equipment.status?.replace('_', ' ').toUpperCase()}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {equipment.sale_price ? (
+                              <div>
+                                <div className="font-medium text-green-600">{equipment.sale_price.toLocaleString()} AED</div>
+                                <div className="text-xs text-gray-500">
+                                  {equipment.sale_date ? new Date(equipment.sale_date).toLocaleDateString() : ''}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">Not sold</span>
+                            )}
                           </td>
                         </tr>
                       ))

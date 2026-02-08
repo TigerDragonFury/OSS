@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useQuery, useMutation, useQueryClient } from '@tantml:react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { AlertTriangle, Package, Wrench, X } from 'lucide-react'
 
@@ -156,7 +156,7 @@ export default function ReplaceEquipmentModal({
     replaceEquipmentMutation.mutate(formData)
   }
 
-  const selectedInventoryItem = inventory?.find(item => item.id === formData.inventory_id)
+  const selectedInventoryItem = inventory?.find((item: any) => item.id === formData.inventory_id)
 
   if (!isOpen) return null
 
@@ -300,7 +300,7 @@ export default function ReplaceEquipmentModal({
                   required
                   value={formData.inventory_id}
                   onChange={(e) => {
-                    const item = inventory?.find(i => i.id === e.target.value)
+                    const item = inventory?.find((i: any) => i.id === e.target.value)
                     setFormData({
                       ...formData, 
                       inventory_id: e.target.value,

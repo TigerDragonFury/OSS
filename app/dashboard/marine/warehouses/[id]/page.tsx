@@ -47,6 +47,20 @@ export default function WarehouseDetailPage() {
     }
   })
 
+  // Fetch marine inventory stored in this warehouse
+  const { data: marineInventory, isLoading: marineInventoryLoading } = useQuery({
+    queryKey: ['warehouse-marine-inventory', warehouseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marine_inventory')
+        .select('*')
+        .eq('warehouse_id', warehouseId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
   if (warehouseLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -92,8 +106,14 @@ export default function WarehouseDetailPage() {
     return styles[condition as keyof typeof styles] || 'bg-gray-100 text-gray-800'
   }
 
-  const totalValue = equipment?.reduce((sum, item) => sum + (parseFloat(item.estimated_value) || 0), 0) || 0
-  const equipmentCount = equipment?.length || 0
+  const landEquipmentValue = equipment?.reduce((sum, item) => sum + (parseFloat(item.estimated_value) || 0), 0) || 0
+  const landEquipmentCount = equipment?.length || 0
+  
+  const marineInventoryValue = marineInventory?.reduce((sum, item) => sum + ((parseFloat(item.unit_price) || 0) * (parseFloat(item.quantity) || 0)), 0) || 0
+  const marineInventoryCount = marineInventory?.length || 0
+  
+  const totalValue = landEquipmentValue + marineInventoryValue
+  const equipmentCount = landEquipmentCount + marineInventoryCount
 
   return (
     <div className="space-y-6">
@@ -213,7 +233,8 @@ export default function WarehouseDetailPage() {
             <div>
               <p className="text-sm text-gray-600">Available Items</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {equipment?.filter(e => e.status === 'available' || e.status === 'in_warehouse').length || 0}
+                {(equipment?.filter(e => e.status === 'available' || e.status === 'in_warehouse').length || 0) + 
+                 (marineInventory?.filter(i => i.status === 'in_stock').length || 0)}
               </p>
             </div>
             <div className="bg-purple-100 rounded-lg p-3">
@@ -223,11 +244,11 @@ export default function WarehouseDetailPage() {
         </div>
       </div>
 
-      {/* Equipment List */}
+      {/* Land Equipment List */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Equipment Inventory</h2>
-          <p className="text-gray-600 mt-1">All equipment stored in this warehouse</p>
+          <h2 className="text-xl font-semibold text-gray-900">Land Equipment</h2>
+          <p className="text-gray-600 mt-1">Equipment from land purchases ({landEquipmentCount} items, ৳{landEquipmentValue.toLocaleString()})</p>
         </div>
 
         {equipmentLoading ? (
@@ -320,6 +341,104 @@ export default function WarehouseDetailPage() {
             </p>
             <p className="text-sm text-gray-500 mt-2">
               Equipment will appear here when you assign it to this warehouse from the land purchases page.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Marine Inventory List */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Marine Inventory</h2>
+          <p className="text-gray-600 mt-1">Operational supplies and spare parts ({marineInventoryCount} items, ৳{marineInventoryValue.toLocaleString()})</p>
+        </div>
+
+        {marineInventoryLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : marineInventory && marineInventory.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Equipment Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Unit Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Value
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date Added
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {marineInventory.map((item: any) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{item.equipment_name || 'Unnamed Item'}</div>
+                      {item.description && (
+                        <div className="text-sm text-gray-500">{item.description}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.category || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.quantity} {item.unit || 'pcs'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ৳{parseFloat(item.unit_price || 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ৳{((parseFloat(item.unit_price) || 0) * (parseFloat(item.quantity) || 0)).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        item.status === 'in_stock' ? 'bg-green-100 text-green-800' : 
+                        item.status === 'low_stock' ? 'bg-yellow-100 text-yellow-800' : 
+                        item.status === 'out_of_stock' ? 'bg-red-100 text-red-800' : 
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.status?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(item.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Marine Inventory Found</h3>
+            <p className="text-gray-600">
+              This warehouse doesn't have any marine inventory stored yet.
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Marine inventory includes operational supplies and spare parts for vessels.
             </p>
           </div>
         )}

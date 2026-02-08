@@ -55,7 +55,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
         .from('expenses')
         .select('*')
         .eq('project_id', resolvedParams.id)
-        .eq('project_type', 'overhaul')
+        .in('project_type', ['vessel', 'overhaul'])
         .order('date', { ascending: false })
       if (error) throw error
       return data
@@ -726,7 +726,7 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
           .from('expenses')
           .insert([{
             project_id: projectId,
-            project_type: 'overhaul',
+            project_type: 'vessel',
             ...data,
             amount: parseFloat(data.amount)
           }])

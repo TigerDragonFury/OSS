@@ -5,10 +5,16 @@ import Link from 'next/link'
 async function getDashboardData() {
   const supabase = await createClient()
   
-  // Get profit/loss summary
-  const { data: profitLoss } = await supabase
-    .from('profit_loss_summary')
-    .select('*')
+  // Get direct income and expenses totals (instead of profit_loss_summary view)
+  const { data: incomeData } = await supabase
+    .from('income_records')
+    .select('amount')
+  const totalIncome = incomeData?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+  
+  const { data: expenseData } = await supabase
+    .from('expenses')
+    .select('amount')
+  const totalExpenses = expenseData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
   
   // Get vessels count and stats
   const { count: vesselsCount } = await supabase
@@ -46,27 +52,32 @@ async function getDashboardData() {
     .eq('payment_status', 'paid')
   const totalRentalIncome = rentalIncomeData?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
   
-  // Get active overhaul projects
+  // Get active overhaul projects - FIXED: column is 'status' not 'project_status'
   const { data: activeOverhauls, count: activeOverhaulsCount } = await supabase
     .from('vessel_overhaul_projects')
     .select('*, vessels(name)', { count: 'exact' })
-    .eq('project_status', 'in_progress')
+    .eq('status', 'in_progress')
     .order('start_date', { ascending: false })
     .limit(5)
   
-  // Get warehouse inventory count
+  // Get marine inventory count - FIXED: table is 'marine_inventory' not 'warehouse_inventory'
   const { count: inventoryCount } = await supabase
-    .from('warehouse_inventory')
+    .from('marine_inventory')
     .select('*', { count: 'exact', head: true })
     .gt('quantity_in_stock', 0)
   
-  // Get low stock items
+  // Get low stock items - FIXED: simplified query without RPC
   const { data: lowStockItems } = await supabase
-    .from('warehouse_inventory')
+    .from('marine_inventory')
     .select('equipment_name, quantity_in_stock, minimum_stock_level')
-    .lt('quantity_in_stock', supabase.rpc('COALESCE', { column: 'minimum_stock_level', value: 10 }))
+    .not('minimum_stock_level', 'is', null)
     .order('quantity_in_stock', { ascending: true })
-    .limit(5)
+    .limit(10)
+  
+  // Filter low stock items where quantity < minimum (do it in JS since SQL is complex)
+  const filteredLowStock = lowStockItems?.filter(item => 
+    item.quantity_in_stock < (item.minimum_stock_level || 10)
+  ).slice(0, 5) || []
   
   // Get recent vessels
   const { data: recentVessels } = await supabase
@@ -90,7 +101,8 @@ async function getDashboardData() {
   const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
   
   return {
-    profitLoss: profitLoss || [],
+    totalIncome,
+    totalExpenses,
     vesselsCount: vesselsCount || 0,
     activeVesselsCount: activeVesselsCount || 0,
     landsCount: landsCount || 0,
@@ -101,7 +113,7 @@ async function getDashboardData() {
     activeOverhauls: activeOverhauls || [],
     activeOverhaulsCount: activeOverhaulsCount || 0,
     inventoryCount: inventoryCount || 0,
-    lowStockItems: lowStockItems || [],
+    lowStockItems: filteredLowStock,
     recentVessels: recentVessels || [],
     recentLands: recentLands || [],
     totalOverhaulExpenses
@@ -111,9 +123,7 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const data = await getDashboardData()
   
-  const totalIncome = data.profitLoss.reduce((sum, company) => sum + (company.total_income || 0), 0)
-  const totalExpenses = data.profitLoss.reduce((sum, company) => sum + (company.total_expenses || 0), 0)
-  const netProfit = totalIncome - totalExpenses
+  const netProfit = data.totalIncome - data.totalExpenses
 
   return (
     <div className="space-y-6">
@@ -129,7 +139,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Income</p>
               <p className="text-2xl font-bold text-green-600 mt-2">
-                {totalIncome.toLocaleString()} AED
+                {data.totalIncome.toLocaleString()} AED
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Rental: {data.totalRentalIncome.toLocaleString()} AED
@@ -146,7 +156,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Expenses</p>
               <p className="text-2xl font-bold text-red-600 mt-2">
-                {totalExpenses.toLocaleString()} AED
+                {data.totalExpenses.toLocaleString()} AED
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Overhaul: {data.totalOverhaulExpenses.toLocaleString()} AED
@@ -256,7 +266,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* Company Breakdown */}
+      {/* Company Assets Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">OSS Marine Services</h2>
@@ -268,28 +278,27 @@ export default async function DashboardPage() {
               </div>
               <span className="text-lg font-bold text-gray-900">{data.vesselsCount}</span>
             </div>
-            {data.profitLoss.find(c => c.company_name === 'OSS Marine Services') && (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Income</span>
-                  <span className="text-lg font-semibold text-green-600">
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Marine Services')?.total_income || 0).toLocaleString()} AED
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Expenses</span>
-                  <span className="text-lg font-semibold text-red-600">
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Marine Services')?.total_expenses || 0).toLocaleString()} AED
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-lg font-bold ${(data.profitLoss.find(c => c.company_name === 'OSS Marine Services')?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Marine Services')?.net_profit || 0).toLocaleString()} AED
-                  </span>
-                </div>
-              </>
-            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Anchor className="h-5 w-5 text-purple-600 mr-2" />
+                <span className="text-sm text-gray-600">Active Rentals</span>
+              </div>
+              <span className="text-lg font-bold text-gray-900">{data.activeRentalsCount}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Wrench className="h-5 w-5 text-orange-600 mr-2" />
+                <span className="text-sm text-gray-600">Overhaul Projects</span>
+              </div>
+              <span className="text-lg font-bold text-gray-900">{data.activeOverhaulsCount}</span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center">
+                <Package className="h-5 w-5 text-teal-600 mr-2" />
+                <span className="text-sm text-gray-600">Inventory Items</span>
+              </div>
+              <span className="text-lg font-bold text-gray-900">{data.inventoryCount}</span>
+            </div>
           </div>
         </div>
 
@@ -303,28 +312,9 @@ export default async function DashboardPage() {
               </div>
               <span className="text-lg font-bold text-gray-900">{data.landsCount}</span>
             </div>
-            {data.profitLoss.find(c => c.company_name === 'OSS Scrap Services') && (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Income</span>
-                  <span className="text-lg font-semibold text-green-600">
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Scrap Services')?.total_income || 0).toLocaleString()} AED
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Expenses</span>
-                  <span className="text-lg font-semibold text-red-600">
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Scrap Services')?.total_expenses || 0).toLocaleString()} AED
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-lg font-bold ${(data.profitLoss.find(c => c.company_name === 'OSS Scrap Services')?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(data.profitLoss.find(c => c.company_name === 'OSS Scrap Services')?.net_profit || 0).toLocaleString()} AED
-                  </span>
-                </div>
-              </>
-            )}
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">Focus on land acquisitions and scrap metal operations</span>
+            </div>
           </div>
         </div>
       </div>
@@ -387,8 +377,8 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
-                        {project.completion_percentage || 0}%
+                      <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 capitalize">
+                        {project.status || 'in_progress'}
                       </span>
                     </div>
                   </Link>

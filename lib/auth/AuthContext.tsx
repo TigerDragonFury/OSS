@@ -10,6 +10,9 @@ interface User {
   role: string
   phone?: string
   company_name?: string
+  last_login?: string
+  created_at?: string
+  updated_at?: string
   roles: string[]
   permissions: Record<string, any>
 }

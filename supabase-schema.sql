@@ -484,11 +484,22 @@ VALUES ('Regina 250', 'Cargo Vessel', 3200000, '2024-01-01', 'scrapping',
 ON CONFLICT DO NOTHING;
 
 -- Insert Equipment Sales for Regina 250
-INSERT INTO vessel_equipment_sales (vessel_id, equipment_name, sale_date, sale_price, description)
-VALUES 
-((SELECT id FROM vessels WHERE name = 'Regina 250'), 'Pipeline Equipment', '2024-03-15', 5000000, 'Pipeline equipment from Regina 250'),
-((SELECT id FROM vessels WHERE name = 'Regina 250'), 'Generators', '2024-04-10', 180000, 'Generators from Regina 250')
-ON CONFLICT DO NOTHING;
+DO $$
+DECLARE
+    v_vessel_id UUID;
+BEGIN
+    -- Get the first Regina 250 vessel ID
+    SELECT id INTO v_vessel_id FROM vessels WHERE name = 'Regina 250' LIMIT 1;
+    
+    IF v_vessel_id IS NOT NULL THEN
+        -- Insert equipment sales only if we have a vessel ID
+        INSERT INTO vessel_equipment_sales (vessel_id, equipment_name, sale_date, sale_price, description)
+        VALUES 
+        (v_vessel_id, 'Pipeline Equipment', '2024-03-15', 5000000, 'Pipeline equipment from Regina 250'),
+        (v_vessel_id, 'Generators', '2024-04-10', 180000, 'Generators from Regina 250')
+        ON CONFLICT DO NOTHING;
+    END IF;
+END $$;
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;

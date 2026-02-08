@@ -3,13 +3,18 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Package, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
+import UseInventoryModal from '@/components/UseInventoryModal'
+import ReplaceEquipmentModal from '@/components/ReplaceEquipmentModal'
 
 export default function OverhaulsPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [showUseInventory, setShowUseInventory] = useState(false)
+  const [showReplaceEquipment, setShowReplaceEquipment] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<any>(null)
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
@@ -138,6 +143,35 @@ export default function OverhaulsPage() {
                     {project.notes && (
                       <p className="text-sm text-gray-600 mt-3">{project.notes}</p>
                     )}
+                    
+                    {/* Action Buttons */}
+                    {project.status === 'in_progress' && (
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedProject(project)
+                            setShowUseInventory(true)
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                        >
+                          <Package className="h-4 w-4" />
+                          Use Inventory
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedProject(project)
+                            setShowReplaceEquipment(true)
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                          Replace Equipment
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -161,6 +195,41 @@ export default function OverhaulsPage() {
       )}
 
       {isAdding && <ProjectForm onClose={() => setIsAdding(false)} vessels={vessels || []} />}
+      
+      {/* Modals */}
+      {selectedProject && (
+        <>
+          <UseInventoryModal
+            isOpen={showUseInventory}
+            onClose={() => {
+              setShowUseInventory(false)
+              setSelectedProject(null)
+            }}
+            vesselId={selectedProject.vessel_id}
+            overhaulProjectId={selectedProject.id}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
+              queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_projects'] })
+            }}
+          />
+
+          <ReplaceEquipmentModal
+            isOpen={showReplaceEquipment}
+            onClose={() => {
+              setShowReplaceEquipment(false)
+              setSelectedProject(null)
+            }}
+            vesselId={selectedProject.vessel_id}
+            vesselName={selectedProject.vessels?.name || 'Unknown Vessel'}
+            overhaulProjectId={selectedProject.id}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['equipment_replacements'] })
+              queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_projects'] })
+              queryClient.invalidateQueries({ queryKey: ['land_equipment'] })
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

@@ -3,12 +3,16 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Package, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import UseInventoryModal from '@/components/UseInventoryModal'
+import ReplaceEquipmentModal from '@/components/ReplaceEquipmentModal'
 
 export default function VesselDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const [activeTab, setActiveTab] = useState('overview')
+  const [showUseInventory, setShowUseInventory] = useState(false)
+  const [showReplaceEquipment, setShowReplaceEquipment] = useState(false)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -90,10 +94,30 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/marine/vessels" className="inline-flex items-center text-blue-600 hover:text-blue-700">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Vessels
-      </Link>
+      <div className="flex justify-between items-center">
+        <Link href="/dashboard/marine/vessels" className="inline-flex items-center text-blue-600 hover:text-blue-700">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Vessels
+        </Link>
+        
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowUseInventory(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Package className="h-5 w-5" />
+            Use Inventory
+          </button>
+          
+          <button
+            onClick={() => setShowReplaceEquipment(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            <AlertTriangle className="h-5 w-5" />
+            Replace Equipment
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-start">
@@ -202,6 +226,27 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <UseInventoryModal
+        isOpen={showUseInventory}
+        onClose={() => setShowUseInventory(false)}
+        vesselId={resolvedParams.id}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
+        }}
+      />
+
+      <ReplaceEquipmentModal
+        isOpen={showReplaceEquipment}
+        onClose={() => setShowReplaceEquipment(false)}
+        vesselId={resolvedParams.id}
+        vesselName={vessel?.name || 'Unknown Vessel'}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['equipment_replacements'] })
+          queryClient.invalidateQueries({ queryKey: ['land_equipment'] })
+        }}
+      />
     </div>
   )
 }

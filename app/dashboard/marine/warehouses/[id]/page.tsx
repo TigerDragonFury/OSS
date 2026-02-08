@@ -266,7 +266,7 @@ export default function WarehouseDetailPage() {
                       <div className="flex items-center">
                         <Package className="h-5 w-5 text-gray-400 mr-2" />
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                          <div className="text-sm font-medium text-gray-900">{item.equipment_name || 'Unnamed Equipment'}</div>
                           {item.description && (
                             <div className="text-sm text-gray-500">{item.description.substring(0, 50)}...</div>
                           )}

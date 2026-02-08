@@ -9,6 +9,9 @@ import Link from 'next/link'
 export default function LandDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const [activeTab, setActiveTab] = useState('overview')
+  const [showScrapForm, setShowScrapForm] = useState(false)
+  const [showEquipmentForm, setShowEquipmentForm] = useState(false)
+  const [showExpenseForm, setShowExpenseForm] = useState(false)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -292,7 +295,10 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Equipment Extracted</h3>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                <button
+                  onClick={() => setShowEquipmentForm(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Equipment
                 </button>
@@ -369,7 +375,10 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Scrap Sales</h3>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                <button
+                  onClick={() => setShowScrapForm(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Scrap Sale
                 </button>
@@ -430,7 +439,10 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Expenses</h3>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                <button
+                  onClick={() => setShowExpenseForm(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Expense
                 </button>
@@ -481,6 +493,425 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Scrap Sale Form Modal */}
+      {showScrapForm && (
+        <ScrapSaleForm
+          landId={resolvedParams.id}
+          onClose={() => setShowScrapForm(false)}
+        />
+      )}
+
+      {/* Equipment Form Modal */}
+      {showEquipmentForm && (
+        <EquipmentForm
+          landId={resolvedParams.id}
+          onClose={() => setShowEquipmentForm(false)}
+        />
+      )}
+
+      {/* Expense Form Modal */}
+      {showExpenseForm && (
+        <ExpenseForm
+          landId={resolvedParams.id}
+          onClose={() => setShowExpenseForm(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Scrap Sale Form Component
+function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => void }) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState({
+    sale_date: new Date().toISOString().split('T')[0],
+    material_type: '',
+    quantity_kg: '',
+    price_per_kg: '',
+    buyer_name: '',
+    notes: ''
+  })
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('land_scrap_sales')
+        .insert([{
+          land_id: landId,
+          ...data,
+          quantity_kg: parseFloat(data.quantity_kg),
+          price_per_kg: parseFloat(data.price_per_kg),
+          total_amount: parseFloat(data.quantity_kg) * parseFloat(data.price_per_kg)
+        }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_scrap_sales', landId] })
+      onClose()
+    }
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-6">Add Scrap Sale</h2>
+          
+          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sale Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.sale_date}
+                  onChange={(e) => setFormData({ ...formData, sale_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Material Type *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.material_type}
+                  onChange={(e) => setFormData({ ...formData, material_type: e.target.value })}
+                  placeholder="e.g., Steel, Copper, Aluminum"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (kg) *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  value={formData.quantity_kg}
+                  onChange={(e) => setFormData({ ...formData, quantity_kg: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per kg (AED) *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  value={formData.price_per_kg}
+                  onChange={(e) => setFormData({ ...formData, price_per_kg: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {formData.quantity_kg && formData.price_per_kg && (
+                <div className="col-span-2 bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600 font-medium">Total Amount</p>
+                  <p className="text-2xl font-bold text-blue-900 mt-1">
+                    {(parseFloat(formData.quantity_kg) * parseFloat(formData.price_per_kg)).toLocaleString()} AED
+                  </p>
+                </div>
+              )}
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.buyer_name}
+                  onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={mutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {mutation.isPending ? 'Saving...' : 'Add Scrap Sale'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Equipment Form Component
+function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => void }) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState({
+    equipment_name: '',
+    description: '',
+    condition: 'good',
+    estimated_value: '',
+    status: 'available'
+  })
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('land_equipment')
+        .insert([{
+          land_id: landId,
+          ...data,
+          estimated_value: parseFloat(data.estimated_value)
+        }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_equipment', landId] })
+      onClose()
+    }
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-6">Add Equipment</h2>
+          
+          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.equipment_name}
+                  onChange={(e) => setFormData({ ...formData, equipment_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Condition *</label>
+                <select
+                  required
+                  value={formData.condition}
+                  onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                  <option value="scrap">Scrap</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Value (AED) *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  value={formData.estimated_value}
+                  onChange={(e) => setFormData({ ...formData, estimated_value: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <select
+                  required
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="available">Available</option>
+                  <option value="sold_as_is">Sold As-Is</option>
+                  <option value="scrapped">Scrapped</option>
+                  <option value="reserved">Reserved</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={mutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {mutation.isPending ? 'Saving...' : 'Add Equipment'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Expense Form Component
+function ExpenseForm({ landId, onClose }: { landId: string, onClose: () => void }) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    description: '',
+    amount: '',
+    payment_method: 'bank_transfer'
+  })
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('expenses')
+        .insert([{
+          project_id: landId,
+          project_type: 'land',
+          ...data,
+          amount: parseFloat(data.amount)
+        }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_expenses', landId] })
+      onClose()
+    }
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-6">Add Expense</h2>
+          
+          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <select
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Category</option>
+                  <option value="labor">Labor</option>
+                  <option value="equipment">Equipment</option>
+                  <option value="transportation">Transportation</option>
+                  <option value="permits">Permits & Fees</option>
+                  <option value="utilities">Utilities</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  required
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED) *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+                <select
+                  required
+                  value={formData.payment_method}
+                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="credit_card">Credit Card</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={mutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {mutation.isPending ? 'Saving...' : 'Add Expense'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

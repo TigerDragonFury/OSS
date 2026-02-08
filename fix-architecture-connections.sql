@@ -1,6 +1,9 @@
 -- Fix Equipment and Income Architecture
 -- Run this to properly connect land equipment to warehouse and track all income
 
+-- Step 0: Drop dependent views first
+DROP VIEW IF EXISTS land_financial_summary CASCADE;
+
 -- Step 1: Remove buyer fields from land_equipment (equipment goes to warehouse, not sold immediately)
 DO $$
 BEGIN
@@ -9,7 +12,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'land_equipment' AND column_name = 'dealer_company_id'
   ) THEN
-    ALTER TABLE land_equipment DROP COLUMN dealer_company_id;
+    ALTER TABLE land_equipment DROP COLUMN dealer_company_id CASCADE;
     RAISE NOTICE 'Removed dealer_company_id from land_equipment';
   END IF;
 
@@ -18,7 +21,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'land_equipment' AND column_name = 'buyer_name'
   ) THEN
-    ALTER TABLE land_equipment DROP COLUMN buyer_name;
+    ALTER TABLE land_equipment DROP COLUMN buyer_name CASCADE;
     RAISE NOTICE 'Removed buyer_name from land_equipment';
   END IF;
 
@@ -27,9 +30,16 @@ BEGIN
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'land_equipment' AND column_name = 'sale_price'
   ) THEN
-    ALTER TABLE land_equipment DROP COLUMN sale_price;
-    ALTER TABLE land_equipment DROP COLUMN sale_date;
-    RAISE NOTICE 'Removed sale_price and sale_date from land_equipment';
+    ALTER TABLE land_equipment DROP COLUMN sale_price CASCADE;
+    RAISE NOTICE 'Removed sale_price from land_equipment';
+  END IF;
+  
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'land_equipment' AND column_name = 'sale_date'
+  ) THEN
+    ALTER TABLE land_equipment DROP COLUMN sale_date CASCADE;
+    RAISE NOTICE 'Removed sale_date from land_equipment';
   END IF;
 END $$;
 

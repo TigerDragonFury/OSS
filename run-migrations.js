@@ -20,6 +20,22 @@ const colors = {
   gray: '\x1b[90m'
 };
 
+// Load environment variables from .env.local
+const envPath = path.join(__dirname, '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^([^=:#]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      const value = match[2].trim();
+      if (key && value && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+}
+
 // Migration files in order
 const MIGRATION_FILES = [
   'supabase-schema.sql',

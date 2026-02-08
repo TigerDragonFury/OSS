@@ -108,7 +108,7 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
       
       const projectIds = projects.map(p => p.id)
       
-      // Then get expenses for those overhaul projects
+      // Then get expenses for those overhaul projects (both 'vessel' and 'overhaul' types)
       const { data, error } = await supabase
         .from('expenses')
         .select(`
@@ -116,7 +116,6 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
           vessel_overhaul_projects(project_name)
         `)
         .in('project_id', projectIds)
-        .eq('project_type', 'overhaul')
         .order('date', { ascending: false })
       if (error) throw error
       return data || []

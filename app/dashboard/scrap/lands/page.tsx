@@ -59,11 +59,15 @@ export default function LandsPage() {
           {lands?.map((land) => {
             const financial = landFinancials?.find(l => l.id === land.id)
             return (
-              <div key={land.id} className="bg-white rounded-lg shadow p-6">
+              <div key={land.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center">
-                      <h3 className="text-xl font-semibold text-gray-900">{land.land_name}</h3>
+                      <Link href={`/dashboard/scrap/lands/${land.id}`}>
+                        <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+                          {land.land_name}
+                        </h3>
+                      </Link>
                       <span className={`ml-3 px-3 py-1 rounded-full text-xs font-medium ${
                         land.status === 'active' ? 'bg-green-100 text-green-800' :
                         land.status === 'partially_cleared' ? 'bg-yellow-100 text-yellow-800' :

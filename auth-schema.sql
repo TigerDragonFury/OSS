@@ -21,7 +21,8 @@ INSERT INTO roles (name, description, permissions) VALUES
 ('operations_manager', 'Operations Manager - Manage vessels, rentals, overhauls', '{"vessels": true, "rentals": true, "overhauls": true, "crew": true}'),
 ('vessel_captain', 'Vessel Captain - View assigned vessel, manage crew', '{"vessels": ["read"], "crew": ["read"], "inventory": ["read"]}'),
 ('rental_agent', 'Rental Agent - Manage customers and bookings', '{"customers": true, "rentals": true, "vessels": ["read"]}'),
-('viewer', 'View Only - Read access to most areas', '{"read_only": true}');
+('viewer', 'View Only - Read access to most areas', '{"read_only": true}')
+ON CONFLICT (name) DO NOTHING;
 
 -- User Roles Junction Table (users can have multiple roles)
 CREATE TABLE IF NOT EXISTS user_roles (
@@ -330,21 +331,21 @@ CREATE POLICY "Allow all on notifications" ON notifications FOR ALL USING (true)
 CREATE POLICY "Allow all on documents" ON documents FOR ALL USING (true) WITH CHECK (true);
 
 -- Create indexes for performance
-CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_token ON user_sessions(token);
-CREATE INDEX idx_customers_status ON customers(status);
-CREATE INDEX idx_vessel_rentals_vessel_id ON vessel_rentals(vessel_id);
-CREATE INDEX idx_vessel_rentals_customer_id ON vessel_rentals(customer_id);
-CREATE INDEX idx_vessel_rentals_status ON vessel_rentals(status);
-CREATE INDEX idx_rental_payments_rental_id ON rental_payments(rental_id);
-CREATE INDEX idx_crew_assignments_vessel_id ON crew_assignments(vessel_id);
-CREATE INDEX idx_crew_assignments_employee_id ON crew_assignments(employee_id);
-CREATE INDEX idx_maintenance_schedules_vessel_id ON maintenance_schedules(vessel_id);
-CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
-CREATE INDEX idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token);
+CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
+CREATE INDEX IF NOT EXISTS idx_vessel_rentals_vessel_id ON vessel_rentals(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_vessel_rentals_customer_id ON vessel_rentals(customer_id);
+CREATE INDEX IF NOT EXISTS idx_vessel_rentals_status ON vessel_rentals(status);
+CREATE INDEX IF NOT EXISTS idx_rental_payments_rental_id ON rental_payments(rental_id);
+CREATE INDEX IF NOT EXISTS idx_crew_assignments_vessel_id ON crew_assignments(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_crew_assignments_employee_id ON crew_assignments(employee_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_schedules_vessel_id ON maintenance_schedules(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);
 
 -- Insert sample admin user (password: admin123 - should be hashed in production)
 -- Note: In production, use proper password hashing like bcrypt

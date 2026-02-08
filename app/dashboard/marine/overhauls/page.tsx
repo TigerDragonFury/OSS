@@ -79,11 +79,15 @@ export default function OverhaulsPage() {
               : 0
 
             return (
-              <div key={project.id} className="bg-white rounded-lg shadow p-6">
+              <div key={project.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center">
-                      <h3 className="text-xl font-semibold text-gray-900">{project.project_name}</h3>
+                      <Link href={`/dashboard/marine/overhauls/${project.id}`}>
+                        <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+                          {project.project_name}
+                        </h3>
+                      </Link>
                       <span className={`ml-3 px-3 py-1 rounded-full text-xs font-medium ${
                         project.status === 'completed' ? 'bg-green-100 text-green-800' :
                         project.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :

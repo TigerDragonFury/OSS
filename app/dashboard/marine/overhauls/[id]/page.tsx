@@ -17,6 +17,8 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
   const [activeTab, setActiveTab] = useState('overview')
   const [showComponentForm, setShowComponentForm] = useState(false)
   const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [editingTask, setEditingTask] = useState<any>(null)
+  const [editingExpense, setEditingExpense] = useState<any>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -242,6 +244,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estimated Cost</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -266,7 +269,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                             {task.task_name}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600">
-                            {task.component_details && (
+                            {(task.manufacturer || task.model || task.year) && (
                               <div className="space-y-1">
                                 {task.manufacturer && <p>Make: {task.manufacturer}</p>}
                                 {task.model && <p>Model: {task.model}</p>}
@@ -286,6 +289,25 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                             }`}>
                               {task.status?.replace('_', ' ').toUpperCase()}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => { setEditingTask(task); setShowComponentForm(true); }}
+                              className="text-blue-600 hover:text-blue-800 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm('Delete this work item?')) {
+                                  await supabase.from('overhaul_tasks').delete().eq('id', task.id)
+                                  queryClient.invalidateQueries({ queryKey: ['overhaul_tasks', resolvedParams.id] })
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -323,6 +345,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -355,17 +378,38 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {expense.reference_number || 'N/A'}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => { setEditingExpense(expense); setShowExpenseForm(true); }}
+                              className="text-blue-600 hover:text-blue-800 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm('Delete this expense?')) {
+                                  await supabase.from('expenses').delete().eq('id', expense.id)
+                                  queryClient.invalidateQueries({ queryKey: ['overhaul_expenses', resolvedParams.id] })
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       ))
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          task={editingTask}
+          onClose={() => { setShowComponentForm(false); setEditingTask(null); }}
+        />
+      )}
 
-          {/* Reclassification Tab */}
-          {activeTab === 'reclassification' && (
+      {showExpenseForm && (
+        <ExpenseForm
+          projectId={resolvedParams.id}
+          expense={editingExpense}
+          onClose={() => { setShowExpenseForm(false); setEditingExpense(null); }
             <VesselReclassificationForm 
               vessel={project.vessels} 
               projectId={resolvedParams.id}
@@ -389,20 +433,18 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
       )}
     </div>
   )
-}
-
 // Component Work Form
-function ComponentWorkForm({ projectId, onClose }: { projectId: string, onClose: () => void }) {
+function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, task?: any, onClose: () => void }) {
   const [formData, setFormData] = useState({
-    component_type: 'engine' as ComponentType,
-    repair_type: 'maintenance' as RepairType,
-    task_name: '',
-    manufacturer: '',
-    model: '',
-    year: '',
-    description: '',
-    estimated_cost: '',
-    status: 'pending'
+    component_type: task?.component_type || 'engine' as ComponentType,
+    repair_type: task?.repair_type || 'maintenance' as RepairType,
+    task_name: task?.task_name || '',
+    manufacturer: task?.manufacturer || '',
+    model: task?.model || '',
+    year: task?.year || '',
+    description: task?.description || '',
+    estimated_cost: task?.estimated_cost || '',
+    status: task?.status || 'pending'
   })
 
   const queryClient = useQueryClient()
@@ -410,15 +452,29 @@ function ComponentWorkForm({ projectId, onClose }: { projectId: string, onClose:
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
-        .from('overhaul_tasks')
-        .insert([{
-          project_id: projectId,
-          ...data,
-          estimated_cost: data.estimated_cost ? parseFloat(data.estimated_cost) : null,
-          year: data.year ? parseInt(data.year) : null
-        }])
-      if (error) throw error
+      if (task?.id) {
+        // Update existing task
+        const { error } = await supabase
+          .from('overhaul_tasks')
+          .update({
+            ...data,
+            estimated_cost: data.estimated_cost ? parseFloat(data.estimated_cost) : null,
+            year: data.year ? parseInt(data.year) : null
+          })
+          .eq('id', task.id)
+        if (error) throw error
+      } else {
+        // Insert new task
+        const { error } = await supabase
+          .from('overhaul_tasks')
+          .insert([{
+            project_id: projectId,
+            ...data,
+            estimated_cost: data.estimated_cost ? parseFloat(data.estimated_cost) : null,
+            year: data.year ? parseInt(data.year) : null
+          }])
+        if (error) throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['overhaul_tasks', projectId] })
@@ -430,7 +486,7 @@ function ComponentWorkForm({ projectId, onClose }: { projectId: string, onClose:
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Add Component Work</h2>
+          <h2 className="text-2xl font-bold mb-6">{task ? 'Edit' : 'Add'} Component Work</h2>
           
           <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -570,7 +626,7 @@ function ComponentWorkForm({ projectId, onClose }: { projectId: string, onClose:
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {mutation.isPending ? 'Saving...' : 'Add Work Item'}
+                {mutation.isPending ? 'Saving...' : (task ? 'Update Work Item' : 'Add Work Item')}
               </button>
             </div>
           </form>
@@ -581,14 +637,14 @@ function ComponentWorkForm({ projectId, onClose }: { projectId: string, onClose:
 }
 
 // Expense Form
-function ExpenseForm({ projectId, onClose }: { projectId: string, onClose: () => void }) {
+function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expense?: any, onClose: () => void }) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    category: '',
-    description: '',
-    amount: '',
-    payment_method: 'bank_transfer',
-    reference_number: ''
+    date: expense?.date || new Date().toISOString().split('T')[0],
+    category: expense?.category || '',
+    description: expense?.description || '',
+    amount: expense?.amount || '',
+    payment_method: expense?.payment_method || 'bank_transfer',
+    reference_number: expense?.reference_number || ''
   })
 
   const queryClient = useQueryClient()
@@ -596,15 +652,28 @@ function ExpenseForm({ projectId, onClose }: { projectId: string, onClose: () =>
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
-        .from('expenses')
-        .insert([{
-          project_id: projectId,
-          project_type: 'overhaul',
-          ...data,
-          amount: parseFloat(data.amount)
-        }])
-      if (error) throw error
+      if (expense?.id) {
+        // Update existing expense
+        const { error } = await supabase
+          .from('expenses')
+          .update({
+            ...data,
+            amount: parseFloat(data.amount)
+          })
+          .eq('id', expense.id)
+        if (error) throw error
+      } else {
+        // Insert new expense
+        const { error} = await supabase
+          .from('expenses')
+          .insert([{
+            project_id: projectId,
+            project_type: 'overhaul',
+            ...data,
+            amount: parseFloat(data.amount)
+          }])
+        if (error) throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['overhaul_expenses', projectId] })
@@ -617,7 +686,7 @@ function ExpenseForm({ projectId, onClose }: { projectId: string, onClose: () =>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Record Expense</h2>
+          <h2 className="text-2xl font-bold mb-6">{expense ? 'Edit' : 'Record'} Expense</h2>
           
           <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -716,7 +785,7 @@ function ExpenseForm({ projectId, onClose }: { projectId: string, onClose: () =>
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {mutation.isPending ? 'Saving...' : 'Add Expense'}
+                {mutation.isPending ? 'Saving...' : (expense ? 'Update Expense' : 'Add Expense')}
               </button>
             </div>
           </form>

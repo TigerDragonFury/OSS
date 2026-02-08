@@ -400,16 +400,14 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                         </tr>
                       ))
                     )}
-          task={editingTask}
-          onClose={() => { setShowComponentForm(false); setEditingTask(null); }}
-        />
-      )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
-      {showExpenseForm && (
-        <ExpenseForm
-          projectId={resolvedParams.id}
-          expense={editingExpense}
-          onClose={() => { setShowExpenseForm(false); setEditingExpense(null); }
+          {/* Reclassification Tab */}
+          {activeTab === 'reclassification' && (
             <VesselReclassificationForm 
               vessel={project.vessels} 
               projectId={resolvedParams.id}
@@ -421,18 +419,22 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
       {showComponentForm && (
         <ComponentWorkForm
           projectId={resolvedParams.id}
-          onClose={() => setShowComponentForm(false)}
+          task={editingTask}
+          onClose={() => { setShowComponentForm(false); setEditingTask(null); }}
         />
       )}
 
       {showExpenseForm && (
         <ExpenseForm
           projectId={resolvedParams.id}
-          onClose={() => setShowExpenseForm(false)}
+          expense={editingExpense}
+          onClose={() => { setShowExpenseForm(false); setEditingExpense(null); }}
         />
       )}
     </div>
   )
+}
+
 // Component Work Form
 function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, task?: any, onClose: () => void }) {
   const [formData, setFormData] = useState({

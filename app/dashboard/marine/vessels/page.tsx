@@ -8,6 +8,7 @@ import Link from 'next/link'
 
 export default function VesselsPage() {
   const [isAddingVessel, setIsAddingVessel] = useState(false)
+  const [editingVessel, setEditingVessel] = useState<any>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -33,6 +34,29 @@ export default function VesselsPage() {
       return data
     }
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (vesselId: string) => {
+      const { error } = await supabase
+        .from('vessels')
+        .delete()
+        .eq('id', vesselId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessels'] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_financial_summary'] })
+    },
+    onError: (error: any) => {
+      alert(`Error deleting vessel: ${error.message}`)
+    }
+  })
+
+  const handleDelete = (vessel: any) => {
+    if (confirm(`Are you sure you want to delete "${vessel.name}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(vessel.id)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -138,9 +162,25 @@ export default function VesselsPage() {
                     <Link 
                       href={`/dashboard/marine/vessels/${vessel.id}`}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                      title="View Details"
                     >
                       <DollarSign className="h-5 w-5" />
                     </Link>
+                    <button
+                      onClick={() => setEditingVessel(vessel)}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded"
+                      title="Edit Vessel"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(vessel)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                      title="Delete Vessel"
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -157,6 +197,13 @@ export default function VesselsPage() {
 
       {isAddingVessel && (
         <VesselForm onClose={() => setIsAddingVessel(false)} />
+      )}
+
+      {editingVessel && (
+        <VesselForm 
+          vessel={editingVessel} 
+          onClose={() => setEditingVessel(null)} 
+        />
       )}
     </div>
   )

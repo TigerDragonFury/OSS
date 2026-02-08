@@ -446,6 +446,8 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
     year: task?.year || '',
     description: task?.description || '',
     estimated_cost: task?.estimated_cost || '',
+    actual_cost: task?.actual_cost || '',
+    contractor_name: task?.contractor_name || '',
     status: task?.status || 'pending'
   })
 
@@ -461,10 +463,31 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
           .update({
             ...data,
             estimated_cost: data.estimated_cost ? parseFloat(data.estimated_cost) : null,
+            actual_cost: data.actual_cost ? parseFloat(data.actual_cost) : null,
             year: data.year ? parseInt(data.year) : null
           })
           .eq('id', task.id)
         if (error) throw error
+
+        // If task is being marked as completed, auto-create expense
+        if (data.status === 'completed' && task.status !== 'completed') {
+          const expenseAmount = data.actual_cost || data.estimated_cost
+          if (expenseAmount) {
+            const { error: expenseError } = await supabase
+              .from('expenses')
+              .insert([{
+                project_id: projectId,
+                project_type: 'overhaul',
+                date: new Date().toISOString().split('T')[0],
+                category: data.repair_type || 'maintenance',
+                description: `${data.component_type?.replace('_', ' ')} - ${data.task_name}${data.actual_cost ? ' (Completed)' : ' (Auto-generated)'}`,
+                amount: parseFloat(expenseAmount),
+                vendor_name: data.contractor_name || null,
+                status: 'paid'
+              }])
+            if (expenseError) console.error('Failed to create expense:', expenseError)
+          }
+        }
       } else {
         // Insert new task
         const { error } = await supabase
@@ -480,6 +503,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['overhaul_tasks', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['overhaul_expenses', projectId] })
       onClose()
     }
   })
@@ -586,8 +610,39 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
                   value={formData.estimated_cost}
                   onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Planned budget amount"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contractor/Vendor</label>
+                <input
+                  type="text"
+                  value={formData.contractor_name}
+                  onChange={(e) => setFormData({ ...formData, contractor_name: e.target.value })}
+                  placeholder="Who will do the work?"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {formData.status === 'completed' && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Actual Cost (AED) <span className="text-xs text-gray-500">- Amount actually paid</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.actual_cost}
+                    onChange={(e) => setFormData({ ...formData, actual_cost: e.target.value })}
+                    placeholder="Leave empty to use estimated cost"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 An expense will be automatically created when you mark this as completed
+                  </p>
+                </div>
+              )}
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Additional Details</label>

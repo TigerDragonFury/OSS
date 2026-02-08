@@ -423,7 +423,6 @@ function ExpensesTab({ vesselId, expenses }: { vesselId: string, expenses: any[]
                 <div>
                   <p className="font-medium">{expense.expense_type}</p>
                   {expense.description && <p className="text-sm text-gray-600 mt-1">{expense.description}</p>}
-                  {expense.vendor_name && <p className="text-sm text-gray-600">Vendor: {expense.vendor_name}</p>}
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-red-600">{expense.amount?.toLocaleString()} AED</p>

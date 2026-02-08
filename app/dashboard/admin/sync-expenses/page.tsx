@@ -56,7 +56,6 @@ export default function SyncExpensesPage() {
               category: task.repair_type || 'maintenance',
               description,
               amount,
-              vendor_name: task.contractor_name,
               status: 'paid',
               company_id: task.company_id,
               payment_method: 'cash'

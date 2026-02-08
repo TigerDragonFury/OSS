@@ -447,7 +447,6 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
     description: task?.description || '',
     estimated_cost: task?.estimated_cost || '',
     actual_cost: task?.actual_cost || '',
-    contractor_name: task?.contractor_name || '',
     company_id: task?.company_id || '',
     status: task?.status || 'pending'
   })
@@ -497,7 +496,6 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
                 category: data.repair_type || 'maintenance',
                 description: `${data.component_type?.replace('_', ' ')} - ${data.task_name}${data.actual_cost ? ' (Completed)' : ' (Auto-generated)'}`,
                 amount: parseFloat(expenseAmount),
-                vendor_name: data.contractor_name || null,
                 status: 'paid'
               }])
             if (expenseError) console.error('Failed to create expense:', expenseError)
@@ -631,17 +629,6 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contractor/Vendor</label>
-                <input
-                  type="text"
-                  value={formData.contractor_name}
-                  onChange={(e) => setFormData({ ...formData, contractor_name: e.target.value })}
-                  placeholder="Who will do the work?"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contractor/Vendor List</label>
                 <select
                   value={formData.company_id}
@@ -732,7 +719,6 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
     category: expense?.category || '',
     description: expense?.description || '',
     amount: expense?.amount || '',
-    vendor_name: expense?.vendor_name || '',
     company_id: expense?.company_id || '',
     payment_method: expense?.payment_method || 'bank_transfer',
     status: expense?.status || 'paid'
@@ -846,17 +832,6 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
                   step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor/Contractor</label>
-                <input
-                  type="text"
-                  value={formData.vendor_name}
-                  onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-                  placeholder="Who was paid?"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>

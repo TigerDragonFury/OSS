@@ -26,7 +26,8 @@ import {
   Award,
   Bell,
   ChevronDown,
-  Building2
+  Building2,
+  RefreshCw
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -174,6 +175,10 @@ export default function DashboardLayout({
               <Link href="/dashboard/companies" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/companies') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                 <Building2 className="mr-3 h-5 w-5" />
                 Companies
+              </Link>
+              <Link href="/dashboard/admin/sync-expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                <RefreshCw className="mr-3 h-5 w-5" />
+                Sync Expenses
               </Link>
             </div>
 

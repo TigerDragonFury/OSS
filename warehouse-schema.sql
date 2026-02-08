@@ -1,6 +1,6 @@
 -- Additional Tables for Warehouse and Inventory Management
 -- Run this AFTER the main supabase-schema.sql
--- This script will DROP and RECREATE tables to force schema updates
+-- This script is idempotent and can be run multiple times safely
 
 -- Drop existing tables (in reverse dependency order)
 DROP TABLE IF EXISTS inventory_movements CASCADE;
@@ -12,7 +12,7 @@ DROP TABLE IF EXISTS warehouses CASCADE;
 -- Warehouses Table
 CREATE TABLE warehouses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(200) NOT NULL,
+  name VARCHAR(200) NOT NULL UNIQUE,
   warehouse_type VARCHAR(50) DEFAULT 'main', -- main, secondary, port, vessel
   location VARCHAR(200) NOT NULL,
   address TEXT,
@@ -123,15 +123,19 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_warehouses_updated_at ON warehouses;
 CREATE TRIGGER update_warehouses_updated_at BEFORE UPDATE ON warehouses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_marine_inventory_updated_at ON marine_inventory;
 CREATE TRIGGER update_marine_inventory_updated_at BEFORE UPDATE ON marine_inventory
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_equipment_tracking_updated_at ON equipment_tracking;
 CREATE TRIGGER update_equipment_tracking_updated_at BEFORE UPDATE ON equipment_tracking
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_purchase_requisitions_updated_at ON purchase_requisitions;
 CREATE TRIGGER update_purchase_requisitions_updated_at BEFORE UPDATE ON purchase_requisitions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -140,7 +144,8 @@ CREATE TRIGGER update_purchase_requisitions_updated_at BEFORE UPDATE ON purchase
 INSERT INTO warehouses (name, warehouse_type, location, address, capacity, status) VALUES
 ('Warehouse A', 'main', 'Dubai', 'Industrial Area 1, Dubai', 5000.00, 'active'),
 ('Warehouse B', 'secondary', 'Sharjah', 'Port Area, Sharjah', 3000.00, 'active'),
-('Port Storage 1', 'port', 'Abu Dhabi', 'Abu Dhabi Port', 2000.00, 'active');
+('Port Storage 1', 'port', 'Abu Dhabi', 'Abu Dhabi Port', 2000.00, 'active')
+ON CONFLICT (name) DO NOTHING;
 
 -- Enable RLS for new tables
 ALTER TABLE warehouses ENABLE ROW LEVEL SECURITY;

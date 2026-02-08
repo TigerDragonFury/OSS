@@ -1,8 +1,36 @@
 -- OSS Group Complete HR & CRM System - Database Schema
 -- For OSS Marine Services and OSS Scrap Services
+-- This script is idempotent and can be run multiple times safely
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Drop existing tables in reverse dependency order
+DROP TABLE IF EXISTS inventory_transactions CASCADE;
+DROP TABLE IF EXISTS inventory CASCADE;
+DROP TABLE IF EXISTS invoice_items CASCADE;
+DROP TABLE IF EXISTS invoices CASCADE;
+DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS land_scrap_sales CASCADE;
+DROP TABLE IF EXISTS land_equipment CASCADE;
+DROP TABLE IF EXISTS land_purchases CASCADE;
+DROP TABLE IF EXISTS overhaul_tasks CASCADE;
+DROP TABLE IF EXISTS vessel_overhaul_projects CASCADE;
+DROP TABLE IF EXISTS drydock_records CASCADE;
+DROP TABLE IF EXISTS vessel_scrap_sales CASCADE;
+DROP TABLE IF EXISTS vessel_equipment_sales CASCADE;
+DROP TABLE IF EXISTS vessel_movements CASCADE;
+DROP TABLE IF EXISTS vessels CASCADE;
+DROP TABLE IF EXISTS external_labor CASCADE;
+DROP TABLE IF EXISTS salary_payments CASCADE;
+DROP TABLE IF EXISTS employees CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS companies CASCADE;
+
+-- Drop existing views
+DROP VIEW IF EXISTS land_financial_summary CASCADE;
+DROP VIEW IF EXISTS vessel_financial_summary CASCADE;
+DROP VIEW IF EXISTS profit_loss_summary CASCADE;
 
 -- ============================================
 -- CORE TABLES
@@ -11,7 +39,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Companies
 CREATE TABLE companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     type VARCHAR(50) CHECK (type IN ('parent', 'marine', 'scrap')),
     parent_id UUID REFERENCES companies(id),
     created_at TIMESTAMP DEFAULT NOW(),
@@ -420,13 +448,28 @@ END;
 $$ language 'plpgsql';
 
 -- Apply update timestamp trigger to relevant tables
+DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
 CREATE TRIGGER update_companies_updated_at BEFORE UPDATE ON companies FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_employees_updated_at ON employees;
 CREATE TRIGGER update_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_vessels_updated_at ON vessels;
 CREATE TRIGGER update_vessels_updated_at BEFORE UPDATE ON vessels FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_land_updated_at ON land_purchases;
 CREATE TRIGGER update_land_updated_at BEFORE UPDATE ON land_purchases FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
 CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory;
 CREATE TRIGGER update_inventory_updated_at BEFORE UPDATE ON inventory FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Calculate invoice total
@@ -442,6 +485,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_invoice_total ON invoice_items;
 CREATE TRIGGER update_invoice_total AFTER INSERT OR UPDATE OR DELETE ON invoice_items 
 FOR EACH ROW EXECUTE FUNCTION calculate_invoice_total();
 
@@ -451,23 +495,27 @@ FOR EACH ROW EXECUTE FUNCTION calculate_invoice_total();
 
 -- Insert Parent Company
 INSERT INTO companies (name, type, parent_id) VALUES 
-('OSS Group', 'parent', NULL);
+('OSS Group', 'parent', NULL)
+ON CONFLICT (name) DO NOTHING;
 
 -- Insert Sub Companies
 INSERT INTO companies (name, type, parent_id) VALUES 
 ('OSS Marine Services', 'marine', (SELECT id FROM companies WHERE name = 'OSS Group')),
-('OSS Scrap Services', 'scrap', (SELECT id FROM companies WHERE name = 'OSS Group'));
+('OSS Scrap Services', 'scrap', (SELECT id FROM companies WHERE name = 'OSS Group'))
+ON CONFLICT DO NOTHING;
 
 -- Insert Sample Vessel (Regina 250)
 INSERT INTO vessels (name, vessel_type, purchase_price, purchase_date, status, notes)
 VALUES ('Regina 250', 'Cargo Vessel', 3200000, '2024-01-01', 'scrapping', 
-'Purchased for 3.2M, unable to class, decided to scrap. Pipeline equipment sold for 5M, generators sold for 180K.');
+'Purchased for 3.2M, unable to class, decided to scrap. Pipeline equipment sold for 5M, generators sold for 180K.')
+ON CONFLICT DO NOTHING;
 
 -- Insert Equipment Sales for Regina 250
 INSERT INTO vessel_equipment_sales (vessel_id, equipment_name, sale_date, sale_price, description)
 VALUES 
 ((SELECT id FROM vessels WHERE name = 'Regina 250'), 'Pipeline Equipment', '2024-03-15', 5000000, 'Pipeline equipment from Regina 250'),
-((SELECT id FROM vessels WHERE name = 'Regina 250'), 'Generators', '2024-04-10', 180000, 'Generators from Regina 250');
+((SELECT id FROM vessels WHERE name = 'Regina 250'), 'Generators', '2024-04-10', 180000, 'Generators from Regina 250')
+ON CONFLICT DO NOTHING;
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
@@ -477,6 +525,23 @@ ALTER TABLE vessels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE land_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON companies;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON users;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON employees;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON vessels;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON land_purchases;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON invoices;
+DROP POLICY IF EXISTS "Allow authenticated users to read" ON expenses;
+
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON companies;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON users;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON employees;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON vessels;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON land_purchases;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON invoices;
+DROP POLICY IF EXISTS "Allow admin/manager to modify" ON expenses;
 
 -- Basic policy to allow authenticated users to read all data
 CREATE POLICY "Allow authenticated users to read" ON companies FOR SELECT TO authenticated USING (true);

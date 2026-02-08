@@ -1,7 +1,18 @@
 -- Authentication and Role-Based Access Control Schema
 -- Run this AFTER the main supabase-schema.sql
+-- This script is idempotent and can be run multiple times safely
 
--- Drop existing tables if needed
+-- Drop existing tables if needed (in reverse dependency order)
+DROP TABLE IF EXISTS documents CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS fuel_records CASCADE;
+DROP TABLE IF EXISTS maintenance_schedules CASCADE;
+DROP TABLE IF EXISTS crew_certifications CASCADE;
+DROP TABLE IF EXISTS crew_assignments CASCADE;
+DROP TABLE IF EXISTS rental_payments CASCADE;
+DROP TABLE IF EXISTS vessel_rentals CASCADE;
+DROP TABLE IF EXISTS customers CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
@@ -251,18 +262,23 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_vessel_rentals_updated_at ON vessel_rentals;
 CREATE TRIGGER update_vessel_rentals_updated_at BEFORE UPDATE ON vessel_rentals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_crew_assignments_updated_at ON crew_assignments;
 CREATE TRIGGER update_crew_assignments_updated_at BEFORE UPDATE ON crew_assignments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_crew_certifications_updated_at ON crew_certifications;
 CREATE TRIGGER update_crew_certifications_updated_at BEFORE UPDATE ON crew_certifications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_maintenance_schedules_updated_at ON maintenance_schedules;
 CREATE TRIGGER update_maintenance_schedules_updated_at BEFORE UPDATE ON maintenance_schedules
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -280,6 +296,21 @@ ALTER TABLE fuel_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow all on roles" ON roles;
+DROP POLICY IF EXISTS "Allow all on user_roles" ON user_roles;
+DROP POLICY IF EXISTS "Allow all on user_sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Allow all on customers" ON customers;
+DROP POLICY IF EXISTS "Allow all on vessel_rentals" ON vessel_rentals;
+DROP POLICY IF EXISTS "Allow all on rental_payments" ON rental_payments;
+DROP POLICY IF EXISTS "Allow all on crew_assignments" ON crew_assignments;
+DROP POLICY IF EXISTS "Allow all on crew_certifications" ON crew_certifications;
+DROP POLICY IF EXISTS "Allow all on maintenance_schedules" ON maintenance_schedules;
+DROP POLICY IF EXISTS "Allow all on fuel_records" ON fuel_records;
+DROP POLICY IF EXISTS "Allow all on activity_logs" ON activity_logs;
+DROP POLICY IF EXISTS "Allow all on notifications" ON notifications;
+DROP POLICY IF EXISTS "Allow all on documents" ON documents;
 
 -- Create permissive policies (adjust based on role requirements later)
 CREATE POLICY "Allow all on roles" ON roles FOR ALL USING (true) WITH CHECK (true);
@@ -343,4 +374,5 @@ ON CONFLICT DO NOTHING;
 INSERT INTO customers (customer_code, company_name, contact_person, email, phone, city, country, customer_type) VALUES
 ('CUST-001', 'Dubai Port World', 'Ahmed Al Maktoum', 'ahmed@dpworld.ae', '+97142881111', 'Dubai', 'UAE', 'company'),
 ('CUST-002', 'Abu Dhabi Shipping', 'Mohammed Al Nahyan', 'mohammed@adship.ae', '+97126661111', 'Abu Dhabi', 'UAE', 'company'),
-('CUST-003', NULL, 'John Smith', 'john.smith@email.com', '+971501112222', 'Sharjah', 'UAE', 'individual');
+('CUST-003', NULL, 'John Smith', 'john.smith@email.com', '+971501112222', 'Sharjah', 'UAE', 'individual')
+ON CONFLICT (customer_code) DO NOTHING;

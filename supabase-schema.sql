@@ -398,14 +398,14 @@ GROUP BY lp.id, lp.land_name, lp.purchase_price, lp.remaining_tonnage;
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 
-CREATE INDEX idx_vessels_status ON vessels(status);
-CREATE INDEX idx_land_status ON land_purchases(status);
-CREATE INDEX idx_invoices_date ON invoices(date);
-CREATE INDEX idx_invoices_status ON invoices(status);
-CREATE INDEX idx_expenses_date ON expenses(date);
-CREATE INDEX idx_expenses_project ON expenses(project_id, project_type);
-CREATE INDEX idx_employees_company ON employees(company_id);
-CREATE INDEX idx_salary_payments_employee ON salary_payments(employee_id);
+CREATE INDEX IF NOT EXISTS idx_vessels_status ON vessels(status);
+CREATE INDEX IF NOT EXISTS idx_land_status ON land_purchases(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_project ON expenses(project_id, project_type);
+CREATE INDEX IF NOT EXISTS idx_employees_company ON employees(company_id);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_employee ON salary_payments(employee_id);
 
 -- ============================================
 -- FUNCTIONS AND TRIGGERS

@@ -448,11 +448,25 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
     estimated_cost: task?.estimated_cost || '',
     actual_cost: task?.actual_cost || '',
     contractor_name: task?.contractor_name || '',
+    company_id: task?.company_id || '',
     status: task?.status || 'pending'
   })
 
   const queryClient = useQueryClient()
   const supabase = createClient()
+
+  // Fetch companies for dropdown
+  const { data: companies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, type')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data
+    }
+  })
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -478,6 +492,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               .insert([{
                 project_id: projectId,
                 project_type: 'vessel',
+                company_id: data.company_id || null,
                 date: new Date().toISOString().split('T')[0],
                 category: data.repair_type || 'maintenance',
                 description: `${data.component_type?.replace('_', ' ')} - ${data.task_name}${data.actual_cost ? ' (Completed)' : ' (Auto-generated)'}`,
@@ -626,6 +641,22 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <select
+                  value={formData.company_id}
+                  onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Company (Optional)</option>
+                  {companies?.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name} ({company.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {formData.status === 'completed' && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -701,22 +732,38 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
     category: expense?.category || '',
     description: expense?.description || '',
     amount: expense?.amount || '',
+    vendor_name: expense?.vendor_name || '',
+    company_id: expense?.company_id || '',
     payment_method: expense?.payment_method || 'bank_transfer',
-    reference_number: expense?.reference_number || ''
+    status: expense?.status || 'paid'
   })
 
   const queryClient = useQueryClient()
   const supabase = createClient()
 
+  // Fetch companies for dropdown
+  const { data: companies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, type')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data
+    }
+  })
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       if (expense?.id) {
-        // Update existing expense
+        // Update existing expense - exclude project_id and project_type
+        const { project_id, project_type, ...updateData } = data
         const { error } = await supabase
           .from('expenses')
           .update({
-            ...data,
-            amount: parseFloat(data.amount)
+            ...updateData,
+            amount: parseFloat(updateData.amount)
           })
           .eq('id', expense.id)
         if (error) throw error
@@ -804,6 +851,33 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor/Contractor</label>
+                <input
+                  type="text"
+                  value={formData.vendor_name}
+                  onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
+                  placeholder="Who was paid?"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <select
+                  value={formData.company_id}
+                  onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Company (Optional)</option>
+                  {companies?.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name} ({company.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
                 <select
                   required
@@ -819,14 +893,18 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
-                <input
-                  type="text"
-                  value={formData.reference_number}
-                  onChange={(e) => setFormData({ ...formData, reference_number: e.target.value })}
-                  placeholder="Invoice/Receipt number"
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status *</label>
+                <select
+                  required
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
+                >
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="paid">Paid</option>
+                  <option value="rejected">Rejected</option>
+                </select>
               </div>
             </div>
 

@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS overhaul_tasks (
     year INTEGER,
     description TEXT,
     contractor_name VARCHAR(255),
+    company_id UUID REFERENCES companies(id),
     start_date DATE,
     end_date DATE,
     estimated_cost DECIMAL(15, 2),
@@ -315,6 +316,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     amount DECIMAL(15, 2),
     date DATE NOT NULL,
     vendor_name VARCHAR(255),
+    payment_method VARCHAR(50),
     project_id UUID, -- Can reference vessel_id, land_id, etc
     project_type VARCHAR(20) CHECK (project_type IN ('vessel', 'land', 'general', 'other')),
     description TEXT,

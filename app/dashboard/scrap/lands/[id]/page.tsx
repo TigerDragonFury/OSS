@@ -389,8 +389,8 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material Type</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity (kg)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/kg</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity (tons)</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/ton</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
                     </tr>
                   </thead>
@@ -413,10 +413,10 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                             {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.quantity_kg?.toLocaleString() || 0}
+                            {sale.quantity_tons?.toLocaleString() || 0}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.price_per_kg?.toFixed(2) || 0} AED
+                            {sale.price_per_ton?.toFixed(2) || 0} AED
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                             {sale.total_amount?.toLocaleString() || 0} AED
@@ -526,8 +526,8 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
   const [formData, setFormData] = useState({
     sale_date: new Date().toISOString().split('T')[0],
     material_type: '',
-    quantity_kg: '',
-    price_per_kg: '',
+    quantity_tons: '',
+    price_per_ton: '',
     buyer_company_id: '',
     notes: ''
   })
@@ -553,9 +553,9 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
         .insert([{
           land_id: landId,
           ...data,
-          quantity_kg: parseFloat(data.quantity_kg),
-          price_per_kg: parseFloat(data.price_per_kg),
-          total_amount: parseFloat(data.quantity_kg) * parseFloat(data.price_per_kg)
+          quantity_tons: parseFloat(data.quantity_tons),
+          price_per_ton: parseFloat(data.price_per_ton),
+          total_amount: parseFloat(data.quantity_tons) * parseFloat(data.price_per_ton)
         }])
       if (error) throw error
     },
@@ -597,34 +597,36 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (kg) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (tons) *</label>
                 <input
                   type="number"
                   required
                   step="0.01"
-                  value={formData.quantity_kg}
-                  onChange={(e) => setFormData({ ...formData, quantity_kg: e.target.value })}
+                  value={formData.quantity_tons}
+                  onChange={(e) => setFormData({ ...formData, quantity_tons: e.target.value })}
+                  placeholder="Enter tonnage"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price per kg (AED) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per ton (AED) *</label>
                 <input
                   type="number"
                   required
                   step="0.01"
-                  value={formData.price_per_kg}
-                  onChange={(e) => setFormData({ ...formData, price_per_kg: e.target.value })}
+                  value={formData.price_per_ton}
+                  onChange={(e) => setFormData({ ...formData, price_per_ton: e.target.value })}
+                  placeholder="Enter price per ton"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              {formData.quantity_kg && formData.price_per_kg && (
+              {formData.quantity_tons && formData.price_per_ton && (
                 <div className="col-span-2 bg-blue-50 p-4 rounded-lg">
                   <p className="text-sm text-blue-600 font-medium">Total Amount</p>
                   <p className="text-2xl font-bold text-blue-900 mt-1">
-                    {(parseFloat(formData.quantity_kg) * parseFloat(formData.price_per_kg)).toLocaleString()} AED
+                    {(parseFloat(formData.quantity_tons) * parseFloat(formData.price_per_ton)).toLocaleString()} AED
                   </p>
                 </div>
               )}

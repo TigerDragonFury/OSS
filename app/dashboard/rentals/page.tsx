@@ -372,7 +372,7 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
         vessel_id: data.vessel_id || null,
         customer_id: data.customer_id || null,
         payment_status: data.payment_status || 'pending',
-        status: data.status || 'active'
+        status: data.status || 'pending'
       }
 
       if (rental) {

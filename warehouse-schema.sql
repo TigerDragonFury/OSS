@@ -1,16 +1,9 @@
 -- Additional Tables for Warehouse and Inventory Management
 -- Run this AFTER the main supabase-schema.sql
--- This script is idempotent and can be run multiple times safely
-
--- Drop existing tables (in reverse dependency order)
-DROP TABLE IF EXISTS inventory_movements CASCADE;
-DROP TABLE IF EXISTS purchase_requisitions CASCADE;
-DROP TABLE IF EXISTS equipment_tracking CASCADE;
-DROP TABLE IF EXISTS marine_inventory CASCADE;
-DROP TABLE IF EXISTS warehouses CASCADE;
+-- Safe to run multiple times - will not delete existing data
 
 -- Warehouses Table
-CREATE TABLE warehouses (
+CREATE TABLE IF NOT EXISTS warehouses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(200) NOT NULL UNIQUE,
   warehouse_type VARCHAR(50) DEFAULT 'main', -- main, secondary, port, vessel
@@ -26,7 +19,7 @@ CREATE TABLE warehouses (
 );
 
 -- Marine Inventory Table (for spare parts, consumables, and small items)
-CREATE TABLE marine_inventory (
+CREATE TABLE IF NOT EXISTS marine_inventory (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   sl_no VARCHAR(50), -- Serial number for tracking
   equipment_name VARCHAR(200) NOT NULL, -- EQUIPMENT column
@@ -50,7 +43,7 @@ CREATE TABLE marine_inventory (
 );
 
 -- Equipment Tracking Table (for large equipment items like generators)
-CREATE TABLE equipment_tracking (
+CREATE TABLE IF NOT EXISTS equipment_tracking (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   equipment_name VARCHAR(200) NOT NULL,
   equipment_code VARCHAR(100) UNIQUE,
@@ -76,7 +69,7 @@ CREATE TABLE equipment_tracking (
 );
 
 -- Purchase Requisitions Table (crew ordering/requesting materials)
-CREATE TABLE purchase_requisitions (
+CREATE TABLE IF NOT EXISTS purchase_requisitions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   requested_by UUID REFERENCES employees(id) NOT NULL,
   vessel_id UUID REFERENCES vessels(id), -- which vessel needs it
@@ -97,7 +90,7 @@ CREATE TABLE purchase_requisitions (
 );
 
 -- Inventory Transactions Table (track stock movements)
-CREATE TABLE inventory_movements (
+CREATE TABLE IF NOT EXISTS inventory_movements (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   inventory_id UUID REFERENCES marine_inventory(id),
   equipment_id UUID REFERENCES equipment_tracking(id),

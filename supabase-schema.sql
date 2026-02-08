@@ -1,43 +1,16 @@
 -- OSS Group Complete HR & CRM System - Database Schema
 -- For OSS Marine Services and OSS Scrap Services
--- This script is idempotent and can be run multiple times safely
+-- Safe to run multiple times - will not delete existing data
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Drop existing tables in reverse dependency order
-DROP TABLE IF EXISTS inventory_transactions CASCADE;
-DROP TABLE IF EXISTS inventory CASCADE;
-DROP TABLE IF EXISTS invoice_items CASCADE;
-DROP TABLE IF EXISTS invoices CASCADE;
-DROP TABLE IF EXISTS expenses CASCADE;
-DROP TABLE IF EXISTS land_scrap_sales CASCADE;
-DROP TABLE IF EXISTS land_equipment CASCADE;
-DROP TABLE IF EXISTS land_purchases CASCADE;
-DROP TABLE IF EXISTS overhaul_tasks CASCADE;
-DROP TABLE IF EXISTS vessel_overhaul_projects CASCADE;
-DROP TABLE IF EXISTS drydock_records CASCADE;
-DROP TABLE IF EXISTS vessel_scrap_sales CASCADE;
-DROP TABLE IF EXISTS vessel_equipment_sales CASCADE;
-DROP TABLE IF EXISTS vessel_movements CASCADE;
-DROP TABLE IF EXISTS vessels CASCADE;
-DROP TABLE IF EXISTS external_labor CASCADE;
-DROP TABLE IF EXISTS salary_payments CASCADE;
-DROP TABLE IF EXISTS employees CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS companies CASCADE;
-
--- Drop existing views
-DROP VIEW IF EXISTS land_financial_summary CASCADE;
-DROP VIEW IF EXISTS vessel_financial_summary CASCADE;
-DROP VIEW IF EXISTS profit_loss_summary CASCADE;
 
 -- ============================================
 -- CORE TABLES
 -- ============================================
 
 -- Companies
-CREATE TABLE companies (
+CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
     type VARCHAR(50) CHECK (type IN ('parent', 'marine', 'scrap')),
@@ -47,7 +20,7 @@ CREATE TABLE companies (
 );
 
 -- Users and Authentication
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(255) NOT NULL,
@@ -63,7 +36,7 @@ CREATE TABLE users (
 -- ============================================
 
 -- Employees
-CREATE TABLE employees (
+CREATE TABLE IF NOT EXISTS employees (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     employee_code VARCHAR(50) UNIQUE NOT NULL,
     full_name VARCHAR(255) NOT NULL,
@@ -84,7 +57,7 @@ CREATE TABLE employees (
 );
 
 -- Salary Payments
-CREATE TABLE salary_payments (
+CREATE TABLE IF NOT EXISTS salary_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     employee_id UUID REFERENCES employees(id),
     payment_date DATE NOT NULL,
@@ -100,7 +73,7 @@ CREATE TABLE salary_payments (
 );
 
 -- External Labor (Daily/Contract Workers)
-CREATE TABLE external_labor (
+CREATE TABLE IF NOT EXISTS external_labor (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     company_id UUID REFERENCES companies(id),
@@ -122,7 +95,7 @@ CREATE TABLE external_labor (
 -- ============================================
 
 -- Vessels
-CREATE TABLE vessels (
+CREATE TABLE IF NOT EXISTS vessels (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     vessel_type VARCHAR(100),
@@ -139,7 +112,7 @@ CREATE TABLE vessels (
 );
 
 -- Vessel Movement Costs
-CREATE TABLE vessel_movements (
+CREATE TABLE IF NOT EXISTS vessel_movements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vessel_id UUID REFERENCES vessels(id),
     from_location VARCHAR(255),
@@ -151,7 +124,7 @@ CREATE TABLE vessel_movements (
 );
 
 -- Vessel Equipment Sales
-CREATE TABLE vessel_equipment_sales (
+CREATE TABLE IF NOT EXISTS vessel_equipment_sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vessel_id UUID REFERENCES vessels(id),
     equipment_name VARCHAR(255) NOT NULL,
@@ -164,7 +137,7 @@ CREATE TABLE vessel_equipment_sales (
 );
 
 -- Vessel Scrap Metal Sales
-CREATE TABLE vessel_scrap_sales (
+CREATE TABLE IF NOT EXISTS vessel_scrap_sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vessel_id UUID REFERENCES vessels(id),
     sale_date DATE,
@@ -177,7 +150,7 @@ CREATE TABLE vessel_scrap_sales (
 );
 
 -- Drydock Records
-CREATE TABLE drydock_records (
+CREATE TABLE IF NOT EXISTS drydock_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vessel_id UUID REFERENCES vessels(id),
     facility_name VARCHAR(255),
@@ -193,7 +166,7 @@ CREATE TABLE drydock_records (
 );
 
 -- Vessel Overhaul Projects
-CREATE TABLE vessel_overhaul_projects (
+CREATE TABLE IF NOT EXISTS vessel_overhaul_projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vessel_id UUID REFERENCES vessels(id),
     project_name VARCHAR(255),
@@ -208,7 +181,7 @@ CREATE TABLE vessel_overhaul_projects (
 );
 
 -- Overhaul Tasks
-CREATE TABLE overhaul_tasks (
+CREATE TABLE IF NOT EXISTS overhaul_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID REFERENCES vessel_overhaul_projects(id),
     task_name VARCHAR(255),
@@ -229,7 +202,7 @@ CREATE TABLE overhaul_tasks (
 -- ============================================
 
 -- Land Purchases
-CREATE TABLE land_purchases (
+CREATE TABLE IF NOT EXISTS land_purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     land_name VARCHAR(255) NOT NULL,
     location VARCHAR(255),
@@ -244,7 +217,7 @@ CREATE TABLE land_purchases (
 );
 
 -- Land Equipment Inventory
-CREATE TABLE land_equipment (
+CREATE TABLE IF NOT EXISTS land_equipment (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     land_id UUID REFERENCES land_purchases(id),
     equipment_name VARCHAR(255),
@@ -261,7 +234,7 @@ CREATE TABLE land_equipment (
 );
 
 -- Scrap Metal Sales (from land)
-CREATE TABLE land_scrap_sales (
+CREATE TABLE IF NOT EXISTS land_scrap_sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     land_id UUID REFERENCES land_purchases(id),
     sale_date DATE,
@@ -279,7 +252,7 @@ CREATE TABLE land_scrap_sales (
 -- ============================================
 
 -- Invoices
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invoice_number VARCHAR(50) UNIQUE NOT NULL,
     company_id UUID REFERENCES companies(id),
@@ -298,7 +271,7 @@ CREATE TABLE invoices (
 );
 
 -- Invoice Items
-CREATE TABLE invoice_items (
+CREATE TABLE IF NOT EXISTS invoice_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE,
     description TEXT,
@@ -309,7 +282,7 @@ CREATE TABLE invoice_items (
 );
 
 -- Expenses
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID REFERENCES companies(id),
     expense_type VARCHAR(100),
@@ -328,7 +301,7 @@ CREATE TABLE expenses (
 );
 
 -- Inventory
-CREATE TABLE inventory (
+CREATE TABLE IF NOT EXISTS inventory (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID REFERENCES companies(id),
     item_name VARCHAR(255) NOT NULL,
@@ -346,7 +319,7 @@ CREATE TABLE inventory (
 );
 
 -- Inventory Transactions
-CREATE TABLE inventory_transactions (
+CREATE TABLE IF NOT EXISTS inventory_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     inventory_id UUID REFERENCES inventory(id),
     transaction_type VARCHAR(20) CHECK (transaction_type IN ('purchase', 'sale', 'use', 'adjustment')),

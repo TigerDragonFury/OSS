@@ -1,24 +1,9 @@
 -- Authentication and Role-Based Access Control Schema
 -- Run this AFTER the main supabase-schema.sql
--- This script is idempotent and can be run multiple times safely
-
--- Drop existing tables if needed (in reverse dependency order)
-DROP TABLE IF EXISTS documents CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS activity_logs CASCADE;
-DROP TABLE IF EXISTS fuel_records CASCADE;
-DROP TABLE IF EXISTS maintenance_schedules CASCADE;
-DROP TABLE IF EXISTS crew_certifications CASCADE;
-DROP TABLE IF EXISTS crew_assignments CASCADE;
-DROP TABLE IF EXISTS rental_payments CASCADE;
-DROP TABLE IF EXISTS vessel_rentals CASCADE;
-DROP TABLE IF EXISTS customers CASCADE;
-DROP TABLE IF EXISTS user_sessions CASCADE;
-DROP TABLE IF EXISTS user_roles CASCADE;
-DROP TABLE IF EXISTS roles CASCADE;
+-- Safe to run multiple times - will not delete existing data
 
 -- Roles Table
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(50) UNIQUE NOT NULL,
   description TEXT,
@@ -39,7 +24,7 @@ INSERT INTO roles (name, description, permissions) VALUES
 ('viewer', 'View Only - Read access to most areas', '{"read_only": true}');
 
 -- User Roles Junction Table (users can have multiple roles)
-CREATE TABLE user_roles (
+CREATE TABLE IF NOT EXISTS user_roles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
@@ -49,7 +34,7 @@ CREATE TABLE user_roles (
 );
 
 -- User Sessions Table
-CREATE TABLE user_sessions (
+CREATE TABLE IF NOT EXISTS user_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   token TEXT UNIQUE NOT NULL,
@@ -60,7 +45,7 @@ CREATE TABLE user_sessions (
 );
 
 -- Customers Table (for vessel rentals)
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   customer_code VARCHAR(50) UNIQUE,
   company_name VARCHAR(255),
@@ -82,7 +67,7 @@ CREATE TABLE customers (
 );
 
 -- Vessel Rentals Table
-CREATE TABLE vessel_rentals (
+CREATE TABLE IF NOT EXISTS vessel_rentals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   rental_number VARCHAR(50) UNIQUE NOT NULL,
   vessel_id UUID REFERENCES vessels(id) NOT NULL,
@@ -112,7 +97,7 @@ CREATE TABLE vessel_rentals (
 );
 
 -- Rental Payments Table
-CREATE TABLE rental_payments (
+CREATE TABLE IF NOT EXISTS rental_payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   rental_id UUID REFERENCES vessel_rentals(id) NOT NULL,
   payment_type VARCHAR(50) DEFAULT 'rental', -- deposit, rental, extension, damage, other
@@ -127,7 +112,7 @@ CREATE TABLE rental_payments (
 );
 
 -- Crew Assignments Table
-CREATE TABLE crew_assignments (
+CREATE TABLE IF NOT EXISTS crew_assignments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vessel_id UUID REFERENCES vessels(id) NOT NULL,
   employee_id UUID REFERENCES employees(id) NOT NULL,
@@ -144,7 +129,7 @@ CREATE TABLE crew_assignments (
 );
 
 -- Crew Certifications Table
-CREATE TABLE crew_certifications (
+CREATE TABLE IF NOT EXISTS crew_certifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   employee_id UUID REFERENCES employees(id) NOT NULL,
   certification_name VARCHAR(200) NOT NULL,
@@ -160,7 +145,7 @@ CREATE TABLE crew_certifications (
 );
 
 -- Maintenance Schedule Table
-CREATE TABLE maintenance_schedules (
+CREATE TABLE IF NOT EXISTS maintenance_schedules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vessel_id UUID REFERENCES vessels(id),
   equipment_id UUID REFERENCES equipment_tracking(id),
@@ -185,7 +170,7 @@ CREATE TABLE maintenance_schedules (
 );
 
 -- Fuel Records Table
-CREATE TABLE fuel_records (
+CREATE TABLE IF NOT EXISTS fuel_records (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vessel_id UUID REFERENCES vessels(id) NOT NULL,
   record_date DATE NOT NULL,
@@ -202,7 +187,7 @@ CREATE TABLE fuel_records (
 );
 
 -- Activity Logs Table (Audit Trail)
-CREATE TABLE activity_logs (
+CREATE TABLE IF NOT EXISTS activity_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id),
   action VARCHAR(100) NOT NULL, -- create, update, delete, login, logout, view
@@ -216,7 +201,7 @@ CREATE TABLE activity_logs (
 );
 
 -- Notifications Table
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) NOT NULL,
   title VARCHAR(255) NOT NULL,
@@ -230,7 +215,7 @@ CREATE TABLE notifications (
 );
 
 -- Documents Table
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   entity_type VARCHAR(100) NOT NULL, -- vessel, employee, rental, customer, invoice
   entity_id UUID NOT NULL,
@@ -244,14 +229,31 @@ CREATE TABLE documents (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Update users table to add password hash and additional fields
-ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+-- Update users table to add password hash and additional fields (if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_hash') THEN
+        ALTER TABLE users ADD COLUMN password_hash TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_active') THEN
+        ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_login') THEN
+        ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'login_attempts') THEN
+        ALTER TABLE users ADD COLUMN login_attempts INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'locked_until') THEN
+        ALTER TABLE users ADD COLUMN locked_until TIMESTAMP;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'must_change_password') THEN
+        ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'avatar_url') THEN
+        ALTER TABLE users ADD COLUMN avatar_url TEXT;
+    END IF;
+END $$;
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

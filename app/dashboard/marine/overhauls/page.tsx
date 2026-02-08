@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 
 export default function OverhaulsPage() {

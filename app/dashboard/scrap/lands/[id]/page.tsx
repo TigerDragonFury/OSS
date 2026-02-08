@@ -392,7 +392,6 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity (kg)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/kg</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -421,9 +420,6 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                             {sale.total_amount?.toLocaleString() || 0} AED
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.buyer_name || 'N/A'}
                           </td>
                         </tr>
                       ))
@@ -532,7 +528,6 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
     material_type: '',
     quantity_kg: '',
     price_per_kg: '',
-    buyer_name: '',
     buyer_company_id: '',
     notes: ''
   })
@@ -635,17 +630,6 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
               )}
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.buyer_name}
-                  onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Scrap Buyer List</label>
                 <select
                   value={formData.buyer_company_id}
@@ -704,7 +688,6 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
     description: '',
     condition: 'good',
     estimated_value: '',
-    buyer_name: '',
     dealer_company_id: '',
     status: 'available'
   })
@@ -782,17 +765,6 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
                   step="0.01"
                   value={formData.estimated_value}
                   onChange={(e) => setFormData({ ...formData, estimated_value: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name</label>
-                <input
-                  type="text"
-                  value={formData.buyer_name}
-                  onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
-                  placeholder="Name of buyer (if sold)"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>

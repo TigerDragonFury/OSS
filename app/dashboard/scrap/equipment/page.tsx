@@ -176,7 +176,6 @@ function EquipmentForm({ onClose, lands }: { onClose: () => void, lands: any[] }
     status: 'available',
     sale_price: '',
     sale_date: '',
-    buyer_name: '',
     notes: ''
   })
 
@@ -298,15 +297,6 @@ function EquipmentForm({ onClose, lands }: { onClose: () => void, lands: any[] }
                     />
                   </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name</label>
-                    <input
-                      type="text"
-                      value={formData.buyer_name}
-                      onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
                 </>
               )}
             </div>

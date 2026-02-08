@@ -242,6 +242,22 @@ CREATE TABLE IF NOT EXISTS land_purchases (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Warehouses
+CREATE TABLE IF NOT EXISTS warehouses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    warehouse_type VARCHAR(50) CHECK (warehouse_type IN ('main', 'secondary', 'temporary', 'external')),
+    location VARCHAR(255),
+    address TEXT,
+    capacity DECIMAL(15, 2),
+    contact_person VARCHAR(255),
+    contact_phone VARCHAR(50),
+    status VARCHAR(20) CHECK (status IN ('active', 'inactive', 'maintenance')) DEFAULT 'active',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Land Equipment Inventory
 CREATE TABLE IF NOT EXISTS land_equipment (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -270,6 +286,55 @@ CREATE TABLE IF NOT EXISTS land_scrap_sales (
     buyer_company_id UUID REFERENCES companies(id),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Warehouse Sales (equipment sold from warehouse)
+CREATE TABLE IF NOT EXISTS warehouse_sales (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    warehouse_id UUID REFERENCES warehouses(id),
+    land_equipment_id UUID REFERENCES land_equipment(id),
+    item_name VARCHAR(255) NOT NULL,
+    sale_date DATE NOT NULL,
+    sale_price DECIMAL(15, 2) NOT NULL,
+    customer_company_id UUID REFERENCES companies(id),
+    customer_name VARCHAR(255),
+    payment_method VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Income Records (all revenue tracking)
+CREATE TABLE IF NOT EXISTS income_records (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    income_date DATE NOT NULL,
+    income_type VARCHAR(50) CHECK (income_type IN ('scrap_sale', 'equipment_sale', 'vessel_rental', 'service', 'other')),
+    source_type VARCHAR(50) CHECK (source_type IN ('land', 'vessel', 'warehouse', 'other')),
+    source_id UUID,
+    reference_id UUID,
+    amount DECIMAL(15, 2) NOT NULL,
+    customer_company_id UUID REFERENCES companies(id),
+    description TEXT,
+    payment_method VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Vessel Rentals
+CREATE TABLE IF NOT EXISTS vessel_rentals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vessel_id UUID REFERENCES vessels(id) NOT NULL,
+    customer_company_id UUID REFERENCES companies(id),
+    customer_name VARCHAR(255),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    daily_rate DECIMAL(15, 2),
+    total_amount DECIMAL(15, 2),
+    payment_status VARCHAR(50) CHECK (payment_status IN ('pending', 'partial', 'paid', 'overdue')),
+    status VARCHAR(50) CHECK (status IN ('active', 'completed', 'cancelled')),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- ============================================
@@ -407,18 +472,20 @@ SELECT
     lp.id,
     lp.land_name,
     lp.purchase_price,
-    COALESCE(SUM(CASE WHEN le.status = 'sold_as_is' THEN le.sale_price ELSE 0 END), 0) as equipment_sales,
-    COALESCE(SUM(lss.total_amount), 0) as scrap_sales,
-    COALESCE(SUM(e.amount), 0) as expenses,
-    (COALESCE(SUM(CASE WHEN le.status = 'sold_as_is' THEN le.sale_price ELSE 0 END), 0) + 
-     COALESCE(SUM(lss.total_amount), 0)) - 
-    (lp.purchase_price + COALESCE(SUM(e.amount), 0)) as net_profit_loss,
-    lp.remaining_tonnage
+    COALESCE(SUM(le.estimated_value), 0) as total_equipment_value,
+    COALESCE(SUM(lss.total_amount), 0) as total_scrap_sales,
+    COALESCE(SUM(ws.sale_price), 0) as total_equipment_sales,
+    COALESCE(SUM(e.amount), 0) as total_expenses,
+    -- Income calculation
+    (COALESCE(SUM(lss.total_amount), 0) + COALESCE(SUM(ws.sale_price), 0)) as total_income,
+    -- Profit calculation (no longer includes estimated equipment value, only actual sales)
+    (COALESCE(SUM(lss.total_amount), 0) + COALESCE(SUM(ws.sale_price), 0) - lp.purchase_price - COALESCE(SUM(e.amount), 0)) as net_profit
 FROM land_purchases lp
 LEFT JOIN land_equipment le ON lp.id = le.land_id
 LEFT JOIN land_scrap_sales lss ON lp.id = lss.land_id
+LEFT JOIN warehouse_sales ws ON le.id = ws.land_equipment_id
 LEFT JOIN expenses e ON lp.id = e.project_id AND e.project_type = 'land'
-GROUP BY lp.id, lp.land_name, lp.purchase_price, lp.remaining_tonnage;
+GROUP BY lp.id, lp.land_name, lp.purchase_price;
 
 -- ============================================
 -- INDEXES FOR PERFORMANCE
@@ -432,6 +499,13 @@ CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE INDEX IF NOT EXISTS idx_expenses_project ON expenses(project_id, project_type);
 CREATE INDEX IF NOT EXISTS idx_employees_company ON employees(company_id);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_employee ON salary_payments(employee_id);
+CREATE INDEX IF NOT EXISTS idx_income_date ON income_records(income_date);
+CREATE INDEX IF NOT EXISTS idx_income_type ON income_records(income_type);
+CREATE INDEX IF NOT EXISTS idx_income_source ON income_records(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_vessel_rentals_vessel ON vessel_rentals(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_vessel_rentals_status ON vessel_rentals(status);
+CREATE INDEX IF NOT EXISTS idx_warehouse_sales_warehouse ON warehouse_sales(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_land_equipment_warehouse ON land_equipment(warehouse_id);
 
 -- ============================================
 -- FUNCTIONS AND TRIGGERS
@@ -471,6 +545,18 @@ CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW
 DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory;
 CREATE TRIGGER update_inventory_updated_at BEFORE UPDATE ON inventory FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_warehouses_updated_at ON warehouses;
+CREATE TRIGGER update_warehouses_updated_at BEFORE UPDATE ON warehouses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_income_records_updated_at ON income_records;
+CREATE TRIGGER update_income_records_updated_at BEFORE UPDATE ON income_records FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_vessel_rentals_updated_at ON vessel_rentals;
+CREATE TRIGGER update_vessel_rentals_updated_at BEFORE UPDATE ON vessel_rentals FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_land_equipment_updated_at ON land_equipment;
+CREATE TRIGGER update_land_equipment_updated_at BEFORE UPDATE ON land_equipment FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Calculate invoice total
 CREATE OR REPLACE FUNCTION calculate_invoice_total()
 RETURNS TRIGGER AS $$
@@ -487,6 +573,110 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_invoice_total ON invoice_items;
 CREATE TRIGGER update_invoice_total AFTER INSERT OR UPDATE OR DELETE ON invoice_items 
 FOR EACH ROW EXECUTE FUNCTION calculate_invoice_total();
+
+-- Auto-create income record when scrap is sold
+CREATE OR REPLACE FUNCTION create_income_from_scrap_sale()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO income_records (
+    income_date,
+    income_type,
+    source_type,
+    source_id,
+    reference_id,
+    amount,
+    customer_company_id,
+    description
+  ) VALUES (
+    NEW.sale_date,
+    'scrap_sale',
+    'land',
+    NEW.land_id,
+    NEW.id,
+    NEW.total_amount,
+    NEW.buyer_company_id,
+    CONCAT('Scrap Sale: ', NEW.material_type, ' - ', NEW.quantity_tons, ' tons')
+  );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS auto_income_scrap_sale ON land_scrap_sales;
+CREATE TRIGGER auto_income_scrap_sale
+AFTER INSERT ON land_scrap_sales
+FOR EACH ROW
+EXECUTE FUNCTION create_income_from_scrap_sale();
+
+-- Auto-create income record when vessel rented
+CREATE OR REPLACE FUNCTION create_income_from_vessel_rental()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.total_amount > 0 AND NEW.payment_status = 'paid' THEN
+    INSERT INTO income_records (
+      income_date,
+      income_type,
+      source_type,
+      source_id,
+      reference_id,
+      amount,
+      customer_company_id,
+      description
+    ) VALUES (
+      COALESCE(NEW.end_date, CURRENT_DATE),
+      'vessel_rental',
+      'vessel',
+      NEW.vessel_id,
+      NEW.id,
+      NEW.total_amount,
+      NEW.customer_company_id,
+      CONCAT('Vessel Rental: ', NEW.start_date, ' to ', NEW.end_date)
+    );
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS auto_income_vessel_rental ON vessel_rentals;
+CREATE TRIGGER auto_income_vessel_rental
+AFTER INSERT OR UPDATE ON vessel_rentals
+FOR EACH ROW
+EXECUTE FUNCTION create_income_from_vessel_rental();
+
+-- Auto-create income record when warehouse equipment sold
+CREATE OR REPLACE FUNCTION create_income_from_warehouse_sale()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO income_records (
+    income_date,
+    income_type,
+    source_type,
+    source_id,
+    reference_id,
+    amount,
+    customer_company_id,
+    description
+  ) VALUES (
+    NEW.sale_date,
+    'equipment_sale',
+    'warehouse',
+    NEW.warehouse_id,
+    NEW.id,
+    NEW.sale_price,
+    NEW.customer_company_id,
+    CONCAT('Equipment Sale: ', NEW.item_name)
+  );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS auto_income_warehouse_sale ON warehouse_sales;
+CREATE TRIGGER auto_income_warehouse_sale
+AFTER INSERT ON warehouse_sales
+FOR EACH ROW
+EXECUTE FUNCTION create_income_from_warehouse_sale();
 
 -- ============================================
 -- INITIAL DATA

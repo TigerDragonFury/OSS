@@ -180,6 +180,10 @@ export default function DashboardLayout({
                 <RefreshCw className="mr-3 h-5 w-5" />
                 Sync Expenses
               </Link>
+              <Link href="/dashboard/admin/sync-tonnage" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-tonnage') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                <RefreshCw className="mr-3 h-5 w-5" />
+                Sync Tonnage
+              </Link>
             </div>
 
             <div className="mb-6">

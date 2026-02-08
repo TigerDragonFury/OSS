@@ -45,11 +45,6 @@ DROP TRIGGER IF EXISTS trigger_update_project_total_spent ON expenses;
 CREATE TRIGGER trigger_update_project_total_spent
 AFTER INSERT OR UPDATE OR DELETE ON expenses
 FOR EACH ROW
-WHEN (
-  (TG_OP = 'INSERT' AND NEW.project_type IN ('vessel', 'overhaul')) OR
-  (TG_OP = 'UPDATE' AND (NEW.project_type IN ('vessel', 'overhaul') OR OLD.project_type IN ('vessel', 'overhaul'))) OR
-  (TG_OP = 'DELETE' AND OLD.project_type IN ('vessel', 'overhaul'))
-)
 EXECUTE FUNCTION update_project_total_spent();
 
 -- Test: Show current state of projects

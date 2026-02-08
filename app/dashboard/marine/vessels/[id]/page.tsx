@@ -76,7 +76,85 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
         .select('*')
         .eq('project_id', resolvedParams.id)
         .eq('project_type', 'vessel')
+        .order('date', { ascending: false})
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: overhaulProjects } = useQuery({
+    queryKey: ['vessel_overhauls', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vessel_overhaul_projects')
+        .select('*')
+        .eq('vessel_id', resolvedParams.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: overhaulExpenses } = useQuery({
+    queryKey: ['vessel_overhaul_expenses', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select(`
+          *,
+          vessel_overhaul_projects!inner(project_name, vessel_id)
+        `)
+        .eq('vessel_overhaul_projects.vessel_id', resolvedParams.id)
+        .in('project_type', ['overhaul', 'vessel'])
         .order('date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: inventoryUsage } = useQuery({
+    queryKey: ['vessel_inventory_usage', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_usage')
+        .select(`
+          *,
+          marine_inventory(equipment_name, category, unit),
+          vessel_overhaul_projects(project_name)
+        `)
+        .eq('vessel_id', resolvedParams.id)
+        .order('usage_date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: equipmentReplacements } = useQuery({
+    queryKey: ['vessel_equipment_replacements', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_replacements')
+        .select(`
+          *,
+          warehouses(name, location),
+          marine_inventory(equipment_name),
+          vessel_overhaul_projects(project_name)
+        `)
+        .eq('vessel_id', resolvedParams.id)
+        .order('replacement_date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: installedEquipment } = useQuery({
+    queryKey: ['vessel_installed_equipment', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vessel_equipment')
+        .select('*')
+        .eq('vessel_id', resolvedParams.id)
+        .order('installation_date', { ascending: false })
       if (error) throw error
       return data
     }
@@ -89,7 +167,11 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
   const totalEquipmentSales = equipmentSales?.reduce((sum, sale) => sum + (sale.sale_price || 0), 0) || 0
   const totalScrapSales = scrapSales?.reduce((sum, sale) => sum + (sale.total_amount || 0), 0) || 0
   const totalMovementCosts = movements?.reduce((sum, mov) => sum + (mov.cost || 0), 0) || 0
-  const totalExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
+  const vesselExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
+  const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
+  const totalInventoryCost = inventoryUsage?.reduce((sum, item) => sum + (item.quantity_used * item.unit_cost), 0) || 0
+  const totalReplacementCost = equipmentReplacements?.reduce((sum, item) => sum + (item.replacement_cost || 0) + (item.labor_cost || 0), 0) || 0
+  const totalExpenses = vesselExpenses + totalOverhaulExpenses + totalInventoryCost + totalReplacementCost
   const netProfitLoss = totalEquipmentSales + totalScrapSales - (vessel.purchase_price || 0) - totalMovementCosts - totalExpenses
 
   return (
@@ -144,11 +226,17 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-lg font-semibold text-green-600">
               +{(totalEquipmentSales + totalScrapSales).toLocaleString()} AED
             </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Equipment: {totalEquipmentSales.toLocaleString()} | Scrap: {totalScrapSales.toLocaleString()}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Total Costs</p>
             <p className="text-lg font-semibold text-red-600">
               -{((vessel.purchase_price || 0) + totalMovementCosts + totalExpenses).toLocaleString()} AED
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Movements: {totalMovementCosts.toLocaleString()} | Operations: {totalExpenses.toLocaleString()}
             </p>
           </div>
           <div>
@@ -158,22 +246,55 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
         </div>
+
+        {/* Cost Breakdown */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Operational Cost Breakdown</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-gray-600">Vessel Expenses</p>
+              <p className="font-semibold text-gray-900">{vesselExpenses.toLocaleString()} AED</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Overhaul Costs</p>
+              <p className="font-semibold text-gray-900">{totalOverhaulExpenses.toLocaleString()} AED</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Parts & Inventory</p>
+              <p className="font-semibold text-gray-900">{totalInventoryCost.toLocaleString()} AED</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Equipment Replacements</p>
+              <p className="font-semibold text-gray-900">{totalReplacementCost.toLocaleString()} AED</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {['overview', 'equipment', 'scrap', 'movements', 'expenses'].map((tab) => (
+          <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+            {[
+              { id: 'overview', name: 'Overview' },
+              { id: 'overhauls', name: 'Overhaul Projects' },
+              { id: 'equipment', name: 'Equipment Sales' },
+              { id: 'scrap', name: 'Scrap Sales' },
+              { id: 'movements', name: 'Movements' },
+              { id: 'expenses', name: 'All Expenses' },
+              { id: 'parts', name: 'Parts Used' },
+              { id: 'replacements', name: 'Equipment Replaced' },
+              { id: 'installed', name: 'Installed Equipment' }
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab.name}
               </button>
             ))}
           </nav>
@@ -222,7 +343,336 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
           )}
 
           {activeTab === 'expenses' && (
-            <ExpensesTab vesselId={resolvedParams.id} expenses={expenses || []} />
+            <ExpensesTab vesselId={resolvedParams.id} expenses={overhaulExpenses || []} />
+          )}
+
+          {activeTab === 'overhauls' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Overhaul Projects</h3>
+              </div>
+              {!overhaulProjects || overhaulProjects.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No overhaul projects for this vessel yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {overhaulProjects.map((project: any) => (
+                    <Link
+                      key={project.id}
+                      href={`/dashboard/marine/overhauls/${project.id}`}
+                      className="block p-4 border rounded-lg hover:bg-gray-50 transition"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-blue-600">{project.project_name}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{project.description || 'No description'}</p>
+                          <div className="flex gap-4 mt-2 text-sm">
+                            <span className="text-gray-600">
+                              Start: {new Date(project.start_date).toLocaleDateString()}
+                            </span>
+                            {project.end_date && (
+                              <span className="text-gray-600">
+                                End: {new Date(project.end_date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          project.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          project.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {(project.status || '').replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                      {project.estimated_cost && (
+                        <div className="mt-2 text-sm text-gray-700">
+                          Estimated Cost: <span className="font-semibold">{project.estimated_cost.toLocaleString()} AED</span>
+                        </div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'parts' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Parts & Inventory Used</h3>
+                  <p className="text-sm text-gray-600">All spare parts used for maintenance and overhaul</p>
+                </div>
+                {inventoryUsage && inventoryUsage.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Total Cost</p>
+                    <p className="text-xl font-bold text-red-600">
+                      {inventoryUsage.reduce((sum: number, item: any) => 
+                        sum + (item.quantity_used * item.unit_cost), 0
+                      ).toLocaleString()} AED
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!inventoryUsage || inventoryUsage.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No inventory used yet</p>
+                  <p className="text-sm mt-2">Use the "Use Inventory" button above to record parts usage</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Item</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Project</th>
+                        <th className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Quantity</th>
+                        <th className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Unit Cost</th>
+                        <th className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Total Cost</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Purpose</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {inventoryUsage.map((item: any) => (
+                        <tr key={item.id}>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                            {new Date(item.usage_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-900">
+                            {item.marine_inventory?.equipment_name || 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
+                            {item.marine_inventory?.category || 'N/A'}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-600">
+                            {item.vessel_overhaul_projects?.project_name || 'General Maintenance'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-right text-gray-900">
+                            {item.quantity_used} {item.marine_inventory?.unit || ''}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-right text-gray-600">
+                            {item.unit_cost?.toLocaleString()} AED
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-right font-semibold text-gray-900">
+                            {(item.quantity_used * item.unit_cost).toLocaleString()} AED
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-600">
+                            {item.purpose || 'N/A'}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-600">
+                            {item.notes || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'replacements' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Equipment Replacements</h3>
+                  <p className="text-sm text-gray-600">History of equipment failures and replacements</p>
+                </div>
+                {equipmentReplacements && equipmentReplacements.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Total Replacement Cost</p>
+                    <p className="text-xl font-bold text-red-600">
+                      {equipmentReplacements.reduce((sum: number, item: any) => 
+                        sum + (item.replacement_cost || 0) + (item.labor_cost || 0), 0
+                      ).toLocaleString()} AED
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!equipmentReplacements || equipmentReplacements.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No equipment replacements recorded</p>
+                  <p className="text-sm mt-2">Use the "Replace Equipment" button above to record failures and replacements</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {equipmentReplacements.map((replacement: any) => (
+                    <div key={replacement.id} className="border rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Failed Equipment */}
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                            <div>
+                              <h4 className="font-semibold text-red-700">Failed Equipment</h4>
+                              <p className="text-lg font-medium text-gray-900 mt-1">{replacement.old_equipment_name}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-2 pl-7">
+                            <div>
+                              <p className="text-xs text-gray-600">Failure Reason</p>
+                              <p className="text-sm text-gray-900">{replacement.failure_reason || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Replacement Date</p>
+                              <p className="text-sm text-gray-900">
+                                {new Date(replacement.replacement_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Disposition</p>
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                replacement.old_equipment_disposition === 'warehouse' ? 'bg-blue-100 text-blue-800' :
+                                replacement.old_equipment_disposition === 'scrap' ? 'bg-red-100 text-red-800' :
+                                replacement.old_equipment_disposition === 'repair' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {(replacement.old_equipment_disposition || '').toUpperCase()}
+                              </span>
+                            </div>
+                            {replacement.old_equipment_disposition === 'warehouse' && replacement.warehouse_id && (
+                              <div>
+                                <p className="text-xs text-gray-600">Sent to Warehouse</p>
+                                <p className="text-sm text-gray-900">
+                                  {replacement.warehouses?.name} ({replacement.warehouses?.location})
+                                </p>
+                              </div>
+                            )}
+                            {replacement.vessel_overhaul_projects?.project_name && (
+                              <div>
+                                <p className="text-xs text-gray-600">Overhaul Project</p>
+                                <p className="text-sm text-blue-600">
+                                  {replacement.vessel_overhaul_projects.project_name}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Replacement Equipment */}
+                        <div className="space-y-3 border-l pl-6">
+                          <div className="flex items-start gap-2">
+                            <Package className="h-5 w-5 text-green-500 mt-0.5" />
+                            <div>
+                              <h4 className="font-semibold text-green-700">Replacement</h4>
+                              <p className="text-lg font-medium text-gray-900 mt-1">
+                                {replacement.new_equipment_name || replacement.marine_inventory?.equipment_name || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="space-y-2 pl-7">
+                            <div>
+                              <p className="text-xs text-gray-600">Source</p>
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                replacement.replacement_source === 'inventory' ? 'bg-blue-100 text-blue-800' :
+                                replacement.replacement_source === 'purchase' ? 'bg-green-100 text-green-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {(replacement.replacement_source || '').toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Installation Date</p>
+                              <p className="text-sm text-gray-900">
+                                {new Date(replacement.replacement_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="pt-2 border-t">
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="text-gray-600">Parts Cost:</span>
+                                <span className="font-medium">{(replacement.replacement_cost || 0).toLocaleString()} AED</span>
+                              </div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="text-gray-600">Labor Cost:</span>
+                                <span className="font-medium">{(replacement.labor_cost || 0).toLocaleString()} AED</span>
+                              </div>
+                              <div className="flex justify-between text-sm font-semibold pt-1 border-t">
+                                <span className="text-gray-900">Total Cost:</span>
+                                <span className="text-red-600">
+                                  {((replacement.replacement_cost || 0) + (replacement.labor_cost || 0)).toLocaleString()} AED
+                                </span>
+                              </div>
+                            </div>
+                            {replacement.notes && (
+                              <div>
+                                <p className="text-xs text-gray-600">Notes</p>
+                                <p className="text-sm text-gray-900">{replacement.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'installed' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Currently Installed Equipment</h3>
+                  <p className="text-sm text-gray-600">Active equipment on this vessel</p>
+                </div>
+              </div>
+              {!installedEquipment || installedEquipment.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No equipment installations recorded</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Equipment Name</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Installation Date</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {installedEquipment.map((item: any) => (
+                        <tr key={item.id}>
+                          <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                            {item.equipment_name}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-600">
+                            {item.equipment_type || 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
+                            {new Date(item.installation_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-4 text-sm">
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                              item.status === 'active' ? 'bg-green-100 text-green-800' :
+                              item.status === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {(item.status || '').toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-600">
+                            {item.notes || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -234,6 +684,7 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
         vesselId={resolvedParams.id}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
+          queryClient.invalidateQueries({ queryKey: ['vessel_inventory_usage', resolvedParams.id] })
         }}
       />
 
@@ -245,6 +696,8 @@ export default function VesselDetailPage({ params }: { params: Promise<{ id: str
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['equipment_replacements'] })
           queryClient.invalidateQueries({ queryKey: ['land_equipment'] })
+          queryClient.invalidateQueries({ queryKey: ['vessel_equipment_replacements', resolvedParams.id] })
+          queryClient.invalidateQueries({ queryKey: ['vessel_installed_equipment', resolvedParams.id] })
         }}
       />
     </div>
@@ -459,19 +912,44 @@ function MovementsTab({ vesselId, movements }: { vesselId: string, movements: an
 function ExpensesTab({ vesselId, expenses }: { vesselId: string, expenses: any[] }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Expenses</h3>
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">All Expenses</h3>
+          <p className="text-sm text-gray-600">Vessel expenses and overhaul project costs</p>
+        </div>
+        {expenses.length > 0 && (
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Total</p>
+            <p className="text-xl font-bold text-red-600">
+              {expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0).toLocaleString()} AED
+            </p>
+          </div>
+        )}
+      </div>
       {expenses.length > 0 ? (
         <div className="space-y-3">
           {expenses.map((expense) => (
             <div key={expense.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between">
-                <div>
-                  <p className="font-medium">{expense.expense_type}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{expense.expense_type}</p>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      expense.project_type === 'overhaul' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {expense.project_type === 'overhaul' ? 'OVERHAUL' : 'VESSEL'}
+                    </span>
+                  </div>
+                  {expense.vessel_overhaul_projects && (
+                    <p className="text-sm text-blue-600 mt-1">
+                      Project: {expense.vessel_overhaul_projects.project_name}
+                    </p>
+                  )}
                   {expense.description && <p className="text-sm text-gray-600 mt-1">{expense.description}</p>}
                 </div>
-                <div className="text-right">
+                <div className="text-right ml-4">
                   <p className="font-semibold text-red-600">{expense.amount?.toLocaleString()} AED</p>
-                  <p className="text-xs text-gray-500 mt-1">{expense.date}</p>
+                  <p className="text-xs text-gray-500 mt-1">{new Date(expense.date).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>

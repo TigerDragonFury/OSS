@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { ArrowLeft, Plus, Settings, DollarSign, FileText, Ship } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, DollarSign, FileText, Ship, Package, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 type ComponentType = 'engine' | 'generator' | 'radio_equipment' | 'navigation_equipment' | 
@@ -62,6 +62,39 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
     }
   })
 
+  const { data: inventoryUsage } = useQuery({
+    queryKey: ['overhaul_inventory_usage', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_usage')
+        .select(`
+          *,
+          marine_inventory(equipment_name, category, unit)
+        `)
+        .eq('overhaul_project_id', resolvedParams.id)
+        .order('usage_date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: equipmentReplacements } = useQuery({
+    queryKey: ['overhaul_equipment_replacements', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_replacements')
+        .select(`
+          *,
+          warehouses(name, location),
+          marine_inventory(equipment_name)
+        `)
+        .eq('overhaul_project_id', resolvedParams.id)
+        .order('replacement_date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
   if (!project) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -80,6 +113,8 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
     { id: 'overview', name: 'Overview' },
     { id: 'components', name: 'Components & Work' },
     { id: 'expenses', name: 'Expenses' },
+    { id: 'inventory', name: 'Inventory Used' },
+    { id: 'replacements', name: 'Equipment Replaced' },
     { id: 'reclassification', name: 'Vessel Updates' }
   ]
 
@@ -403,6 +438,201 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Inventory Used Tab */}
+          {activeTab === 'inventory' && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Inventory Used in This Project</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Total Cost: ৳{inventoryUsage?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
+                </p>
+              </div>
+
+              {inventoryUsage && inventoryUsage.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity Used</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Cost</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Cost</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purpose</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {inventoryUsage.map((item: any) => (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(item.usage_date).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {item.marine_inventory?.equipment_name || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {item.marine_inventory?.category || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.quantity_used} {item.marine_inventory?.unit || 'pcs'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ৳{parseFloat(item.unit_cost || 0).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ৳{parseFloat(item.total_cost || 0).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                              {item.purpose || 'overhaul'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                            {item.notes || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <Package className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory used yet</h3>
+                  <p className="mt-1 text-sm text-gray-500">Inventory usage will appear here when you use the "Use Inventory" button.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Equipment Replacements Tab */}
+          {activeTab === 'replacements' && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Equipment Replaced in This Project</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Total Cost: ৳{equipmentReplacements?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
+                </p>
+              </div>
+
+              {equipmentReplacements && equipmentReplacements.length > 0 ? (
+                <div className="space-y-4">
+                  {equipmentReplacements.map((replacement: any) => (
+                    <div key={replacement.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Old Equipment */}
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-gray-900">Failed Equipment</h4>
+                              <p className="text-base font-medium text-gray-900 mt-1">{replacement.old_equipment_name}</p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Failure Reason</p>
+                            <p className="text-sm text-gray-700 mt-1">{replacement.failure_reason}</p>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Failure Date</p>
+                            <p className="text-sm text-gray-700">{replacement.failure_date}</p>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Disposition</p>
+                            <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                              replacement.old_equipment_disposition === 'sent_to_warehouse' ? 'bg-blue-100 text-blue-800' :
+                              replacement.old_equipment_disposition === 'scrapped' ? 'bg-red-100 text-red-800' :
+                              replacement.old_equipment_disposition === 'repaired' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {replacement.old_equipment_disposition?.replace('_', ' ')}
+                            </span>
+                            {replacement.old_equipment_disposition === 'sent_to_warehouse' && replacement.warehouses && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                📍 {replacement.warehouses.name} ({replacement.warehouses.location})
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* New Equipment */}
+                        <div className="space-y-3 border-l pl-6">
+                          <div className="flex items-start gap-2">
+                            <Package className="h-5 w-5 text-green-500 mt-0.5" />
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-gray-900">Replacement</h4>
+                              <p className="text-base font-medium text-gray-900 mt-1">
+                                {replacement.marine_inventory?.equipment_name || 'New Equipment'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Source</p>
+                            <span className="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 capitalize">
+                              {replacement.new_equipment_source?.replace('_', ' ')}
+                            </span>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Replacement Date</p>
+                            <p className="text-sm text-gray-700">{replacement.replacement_date}</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 uppercase">Parts Cost</p>
+                              <p className="text-sm font-semibold text-gray-900">
+                                ৳{parseFloat(replacement.replacement_cost || 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 uppercase">Labor Cost</p>
+                              <p className="text-sm font-semibold text-gray-900">
+                                ৳{parseFloat(replacement.labor_cost || 0).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-2 border-t">
+                            <p className="text-xs font-medium text-gray-500 uppercase">Total Cost</p>
+                            <p className="text-lg font-bold text-red-600">
+                              ৳{parseFloat(replacement.total_cost || 0).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {replacement.notes && (
+                        <div className="mt-4 pt-4 border-t">
+                          <p className="text-xs font-medium text-gray-500 uppercase">Notes</p>
+                          <p className="text-sm text-gray-700 mt-1">{replacement.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <AlertTriangle className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No equipment replaced yet</h3>
+                  <p className="mt-1 text-sm text-gray-500">Equipment replacements will appear here when you use the "Replace Equipment" button.</p>
+                </div>
+              )}
             </div>
           )}
 

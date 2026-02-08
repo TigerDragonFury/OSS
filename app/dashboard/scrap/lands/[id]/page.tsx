@@ -397,7 +397,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                   <tbody className="bg-white divide-y divide-gray-200">
                     {scrapSales?.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center">
+                        <td colSpan={5} className="px-6 py-12 text-center">
                           <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
                           <h3 className="mt-2 text-sm font-medium text-gray-900">No scrap sales</h3>
                           <p className="mt-1 text-sm text-gray-500">Start by recording scrap sales from this land.</p>

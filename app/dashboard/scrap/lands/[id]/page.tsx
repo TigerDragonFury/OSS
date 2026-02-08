@@ -690,18 +690,17 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
     description: '',
     condition: 'good',
     estimated_value: '',
-    dealer_company_id: '',
+    warehouse_id: '',
     status: 'available'
   })
 
-  // Fetch equipment dealers for dropdown
-  const { data: dealers } = useQuery({
-    queryKey: ['companies', 'equipment_dealers'],
+  // Fetch warehouses for dropdown
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('companies')
-        .select('id, name, type')
-        .eq('type', 'equipment_dealer')
+        .from('warehouses')
+        .select('id, name, location')
         .order('name', { ascending: true })
       if (error) throw error
       return data
@@ -772,16 +771,17 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Dealer List</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse Location *</label>
                 <select
-                  value={formData.dealer_company_id}
-                  onChange={(e) => setFormData({ ...formData, dealer_company_id: e.target.value })}
+                  required
+                  value={formData.warehouse_id}
+                  onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Equipment Dealer (Optional)</option>
-                  {dealers?.map((dealer) => (
-                    <option key={dealer.id} value={dealer.id}>
-                      {dealer.name}
+                  <option value="">Select Warehouse</option>
+                  {warehouses?.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name} - {warehouse.location}
                     </option>
                   ))}
                 </select>
@@ -796,7 +796,7 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="available">Available</option>
-                  <option value="sold_as_is">Sold As-Is</option>
+                  <option value="in_warehouse">In Warehouse</option>
                   <option value="scrapped">Scrapped</option>
                   <option value="reserved">Reserved</option>
                 </select>

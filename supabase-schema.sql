@@ -246,15 +246,12 @@ CREATE TABLE IF NOT EXISTS land_purchases (
 CREATE TABLE IF NOT EXISTS land_equipment (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     land_id UUID REFERENCES land_purchases(id),
+    warehouse_id UUID REFERENCES warehouses(id),
     equipment_name VARCHAR(255),
     description TEXT,
     condition VARCHAR(50) CHECK (condition IN ('good', 'fair', 'poor', 'scrap')),
     estimated_value DECIMAL(15, 2),
-    status VARCHAR(50) CHECK (status IN ('available', 'sold_as_is', 'scrapped', 'reserved')),
-    sale_price DECIMAL(15, 2),
-    sale_date DATE,
-    buyer_name VARCHAR(255),
-    dealer_company_id UUID REFERENCES companies(id),
+    status VARCHAR(50) CHECK (status IN ('available', 'in_warehouse', 'scrapped', 'reserved')),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()

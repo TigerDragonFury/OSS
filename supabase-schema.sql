@@ -184,7 +184,12 @@ CREATE TABLE IF NOT EXISTS vessel_overhaul_projects (
 CREATE TABLE IF NOT EXISTS overhaul_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID REFERENCES vessel_overhaul_projects(id),
+    component_type VARCHAR(100),
+    repair_type VARCHAR(100),
     task_name VARCHAR(255),
+    manufacturer VARCHAR(255),
+    model VARCHAR(255),
+    year INTEGER,
     description TEXT,
     contractor_name VARCHAR(255),
     start_date DATE,
@@ -196,6 +201,26 @@ CREATE TABLE IF NOT EXISTS overhaul_tasks (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Add missing columns to overhaul_tasks if they don't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'overhaul_tasks' AND column_name = 'component_type') THEN
+        ALTER TABLE overhaul_tasks ADD COLUMN component_type VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'overhaul_tasks' AND column_name = 'repair_type') THEN
+        ALTER TABLE overhaul_tasks ADD COLUMN repair_type VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'overhaul_tasks' AND column_name = 'manufacturer') THEN
+        ALTER TABLE overhaul_tasks ADD COLUMN manufacturer VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'overhaul_tasks' AND column_name = 'model') THEN
+        ALTER TABLE overhaul_tasks ADD COLUMN model VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'overhaul_tasks' AND column_name = 'year') THEN
+        ALTER TABLE overhaul_tasks ADD COLUMN year INTEGER;
+    END IF;
+END $$;
 
 -- ============================================
 -- SCRAP SERVICES

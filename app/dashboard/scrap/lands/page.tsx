@@ -103,25 +103,25 @@ export default function LandsPage() {
                           <div>
                             <p className="text-gray-600">Equipment Sales</p>
                             <p className="font-semibold text-green-600">
-                              +{financial.equipment_sales?.toLocaleString() || 0} AED
+                              +{financial.total_equipment_sales?.toLocaleString() || 0} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Scrap Sales</p>
                             <p className="font-semibold text-green-600">
-                              +{financial.scrap_sales?.toLocaleString() || 0} AED
+                              +{financial.total_scrap_sales?.toLocaleString() || 0} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Total Expenses</p>
                             <p className="font-semibold text-red-600">
-                              -{financial.expenses?.toLocaleString() || 0} AED
+                              -{financial.total_expenses?.toLocaleString() || 0} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Net Profit/Loss</p>
-                            <p className={`font-bold ${financial.net_profit_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {financial.net_profit_loss >= 0 ? '+' : ''}{financial.net_profit_loss?.toLocaleString() || 0} AED
+                            <p className={`font-bold ${financial.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {financial.net_profit >= 0 ? '+' : ''}{financial.net_profit?.toLocaleString() || 0} AED
                             </p>
                           </div>
                         </div>

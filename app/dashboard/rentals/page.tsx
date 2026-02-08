@@ -370,7 +370,9 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
         total_amount: data.total_amount ? parseFloat(data.total_amount) : null,
         deposit_amount: data.deposit_amount ? parseFloat(data.deposit_amount) : 0,
         vessel_id: data.vessel_id || null,
-        customer_id: data.customer_id || null
+        customer_id: data.customer_id || null,
+        payment_status: data.payment_status || 'pending',
+        status: data.status || 'active'
       }
 
       if (rental) {

@@ -477,7 +477,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               .from('expenses')
               .insert([{
                 project_id: projectId,
-                project_type: 'overhaul',
+                project_type: 'vessel',
                 date: new Date().toISOString().split('T')[0],
                 category: data.repair_type || 'maintenance',
                 description: `${data.component_type?.replace('_', ' ')} - ${data.task_name}${data.actual_cost ? ' (Completed)' : ' (Auto-generated)'}`,

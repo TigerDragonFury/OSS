@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
-    type VARCHAR(50) CHECK (type IN ('parent', 'marine', 'scrap')),
+    type VARCHAR(50) CHECK (type IN ('parent', 'contractor', 'vendor', 'scrap_buyer', 'equipment_dealer', 'marine', 'scrap')),
     parent_id UUID REFERENCES companies(id),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -254,6 +254,7 @@ CREATE TABLE IF NOT EXISTS land_equipment (
     sale_price DECIMAL(15, 2),
     sale_date DATE,
     buyer_name VARCHAR(255),
+    dealer_company_id UUID REFERENCES companies(id),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -269,6 +270,7 @@ CREATE TABLE IF NOT EXISTS land_scrap_sales (
     price_per_kg DECIMAL(15, 2),
     total_amount DECIMAL(15, 2),
     buyer_name VARCHAR(255),
+    buyer_company_id UUID REFERENCES companies(id),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );

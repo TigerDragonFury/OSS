@@ -642,16 +642,16 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contractor/Vendor List</label>
                 <select
                   value={formData.company_id}
                   onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Company (Optional)</option>
+                  <option value="">Select Contractor/Vendor (Optional)</option>
                   {companies?.map((company) => (
                     <option key={company.id} value={company.id}>
-                      {company.name} ({company.type})
+                      {company.name}
                     </option>
                   ))}
                 </select>
@@ -862,16 +862,16 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contractor/Vendor List</label>
                 <select
                   value={formData.company_id}
                   onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Company (Optional)</option>
+                  <option value="">Select Contractor/Vendor (Optional)</option>
                   {companies?.map((company) => (
                     <option key={company.id} value={company.id}>
-                      {company.name} ({company.type})
+                      {company.name}
                     </option>
                   ))}
                 </select>

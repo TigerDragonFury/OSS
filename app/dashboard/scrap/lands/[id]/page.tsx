@@ -533,7 +533,22 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
     quantity_kg: '',
     price_per_kg: '',
     buyer_name: '',
+    buyer_company_id: '',
     notes: ''
+  })
+
+  // Fetch scrap buyers for dropdown
+  const { data: scrapBuyers } = useQuery({
+    queryKey: ['companies', 'scrap_buyers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, type')
+        .eq('type', 'scrap_buyer')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data
+    }
   })
 
   const mutation = useMutation({
@@ -631,6 +646,22 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
               </div>
 
               <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scrap Buyer List</label>
+                <select
+                  value={formData.buyer_company_id}
+                  onChange={(e) => setFormData({ ...formData, buyer_company_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Scrap Buyer (Optional)</option>
+                  {scrapBuyers?.map((buyer) => (
+                    <option key={buyer.id} value={buyer.id}>
+                      {buyer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea
                   value={formData.notes}
@@ -673,7 +704,23 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
     description: '',
     condition: 'good',
     estimated_value: '',
+    buyer_name: '',
+    dealer_company_id: '',
     status: 'available'
+  })
+
+  // Fetch equipment dealers for dropdown
+  const { data: dealers } = useQuery({
+    queryKey: ['companies', 'equipment_dealers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, type')
+        .eq('type', 'equipment_dealer')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data
+    }
   })
 
   const mutation = useMutation({
@@ -737,6 +784,33 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
                   onChange={(e) => setFormData({ ...formData, estimated_value: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name</label>
+                <input
+                  type="text"
+                  value={formData.buyer_name}
+                  onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
+                  placeholder="Name of buyer (if sold)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Dealer List</label>
+                <select
+                  value={formData.dealer_company_id}
+                  onChange={(e) => setFormData({ ...formData, dealer_company_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Equipment Dealer (Optional)</option>
+                  {dealers?.map((dealer) => (
+                    <option key={dealer.id} value={dealer.id}>
+                      {dealer.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="col-span-2">

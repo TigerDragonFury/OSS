@@ -239,6 +239,27 @@ CREATE INDEX IF NOT EXISTS idx_warehouse_sales_warehouse ON warehouse_sales(ware
 CREATE INDEX IF NOT EXISTS idx_land_equipment_warehouse ON land_equipment(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_overhaul_vessel ON vessel_overhaul_projects(vessel_id);
 
+-- Step 11: Recreate land_financial_summary view (updated for new structure)
+CREATE OR REPLACE VIEW land_financial_summary AS
+SELECT 
+  lp.id,
+  lp.land_name,
+  lp.purchase_price,
+  COALESCE(SUM(le.estimated_value), 0) as total_equipment_value,
+  COALESCE(SUM(lss.total_amount), 0) as total_scrap_sales,
+  COALESCE(SUM(ws.sale_price), 0) as total_equipment_sales,
+  COALESCE(SUM(e.amount), 0) as total_expenses,
+  -- Income calculation
+  (COALESCE(SUM(lss.total_amount), 0) + COALESCE(SUM(ws.sale_price), 0)) as total_income,
+  -- Profit calculation (no longer includes estimated equipment value, only actual sales)
+  (COALESCE(SUM(lss.total_amount), 0) + COALESCE(SUM(ws.sale_price), 0) - lp.purchase_price - COALESCE(SUM(e.amount), 0)) as net_profit
+FROM land_purchases lp
+LEFT JOIN land_equipment le ON lp.id = le.land_id
+LEFT JOIN land_scrap_sales lss ON lp.id = lss.land_id
+LEFT JOIN warehouse_sales ws ON le.id = ws.land_equipment_id
+LEFT JOIN expenses e ON lp.id = e.project_id AND e.project_type = 'land'
+GROUP BY lp.id, lp.land_name, lp.purchase_price;
+
 -- Verify the changes
 SELECT 
   'income_records created' as status,

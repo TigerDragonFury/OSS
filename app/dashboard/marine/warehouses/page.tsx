@@ -3,8 +3,9 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, Warehouse, MapPin } from 'lucide-react'
+import { Plus, Warehouse, MapPin, ArrowRight } from 'lucide-react'
 import Pagination from '@/components/Pagination'
+import Link from 'next/link'
 
 export default function WarehousesPage() {
   const [isAdding, setIsAdding] = useState(false)
@@ -55,17 +56,24 @@ export default function WarehousesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedWarehouses?.map((warehouse: any) => (
-            <div key={warehouse.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <Link 
+              key={warehouse.id} 
+              href={`/dashboard/marine/warehouses/${warehouse.id}`}
+              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block group"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center">
                     <div className="bg-blue-100 rounded-lg p-3">
                       <Warehouse className="h-6 w-6 text-blue-600" />
                     </div>
-                    <div className="ml-3">
-                      <h3 className="text-lg font-semibold text-gray-900">{warehouse.name}</h3>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {warehouse.name}
+                      </h3>
                       <p className="text-sm text-gray-600">{warehouse.warehouse_type?.replace('_', ' ').toUpperCase()}</p>
                     </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                   </div>
 
                   <div className="mt-4 space-y-2">
@@ -109,7 +117,7 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
 
           {warehouses?.length === 0 && (

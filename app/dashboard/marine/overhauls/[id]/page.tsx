@@ -496,6 +496,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
             project_id: projectId,
             ...data,
             estimated_cost: data.estimated_cost ? parseFloat(data.estimated_cost) : null,
+            actual_cost: data.actual_cost ? parseFloat(data.actual_cost) : null,
             year: data.year ? parseInt(data.year) : null
           }])
         if (error) throw error

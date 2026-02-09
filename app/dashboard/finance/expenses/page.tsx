@@ -284,8 +284,16 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Clean up formData - convert empty strings to null for UUID fields
+    const cleanedData = {
+      ...formData,
+      paid_by_owner_id: formData.paid_by_owner_id || null,
+      company_id: formData.company_id || null
+    }
+    
     mutation.mutate({
-      expenseData: formData,
+      expenseData: cleanedData,
       paymentSplits
     })
   }

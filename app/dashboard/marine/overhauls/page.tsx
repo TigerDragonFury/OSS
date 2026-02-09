@@ -397,8 +397,16 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Clean up formData - convert empty strings to null for UUID fields
+    const cleanedData = {
+      ...formData,
+      paid_by_owner_id: formData.paid_by_owner_id || null,
+      vessel_id: formData.vessel_id || null
+    }
+    
     mutation.mutate({
-      projectData: formData,
+      projectData: cleanedData,
       paymentSplits
     })
   }

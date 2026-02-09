@@ -1074,7 +1074,16 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-6">{expense ? 'Edit' : 'Record'} Expense</h2>
           
-          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate({ ...formData, paymentSplits }) }} className="space-y-4">
+          <form onSubmit={(e) => { 
+            e.preventDefault()
+            // Clean up formData - convert empty strings to null for UUID fields
+            const cleanedData = {
+              ...formData,
+              paid_by_owner_id: formData.paid_by_owner_id || null,
+              company_id: formData.company_id || null
+            }
+            mutation.mutate({ ...cleanedData, paymentSplits })
+          }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>

@@ -121,30 +121,42 @@ export default function VesselsPage() {
                     {financial && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Financial Summary</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                           <div>
                             <p className="text-gray-600">Equipment Sales</p>
                             <p className="font-semibold text-green-600">
-                              +{financial.equipment_sales?.toLocaleString() || 0} AED
+                              +{financial.total_equipment_sales?.toLocaleString() || 0} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Scrap Sales</p>
                             <p className="font-semibold text-green-600">
-                              +{financial.scrap_sales?.toLocaleString() || 0} AED
+                              +{financial.total_scrap_sales?.toLocaleString() || 0} AED
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Rental Income</p>
+                            <p className="font-semibold text-green-600">
+                              +{financial.total_rental_income?.toLocaleString() || 0} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Total Costs</p>
                             <p className="font-semibold text-red-600">
-                              -{((financial.movement_costs || 0) + (financial.drydock_costs || 0) + 
-                                (financial.overhaul_costs || 0) + (financial.other_expenses || 0)).toLocaleString()} AED
+                              -{((vessel.purchase_price || 0) + (financial.total_expenses || 0) + 
+                                (financial.total_overhaul_expenses || 0)).toLocaleString()} AED
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Net Profit/Loss</p>
-                            <p className={`font-bold ${financial.net_profit_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {financial.net_profit_loss >= 0 ? '+' : ''}{financial.net_profit_loss?.toLocaleString() || 0} AED
+                            <p className={`font-bold ${
+                              (((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 
+                              ? 'text-green-600' : 'text-red-600'}`}>
+                              {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 ? '+' : ''}
+                              {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))).toLocaleString()} AED
                             </p>
                           </div>
                         </div>

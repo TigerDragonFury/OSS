@@ -3,14 +3,16 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, Package, AlertTriangle } from 'lucide-react'
+import { Plus, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import UseInventoryModal from '@/components/UseInventoryModal'
 import ReplaceEquipmentModal from '@/components/ReplaceEquipmentModal'
+import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function OverhaulsPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [editingProject, setEditingProject] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [showUseInventory, setShowUseInventory] = useState(false)
   const [showReplaceEquipment, setShowReplaceEquipment] = useState(false)
@@ -49,6 +51,30 @@ export default function OverhaulsPage() {
       return data
     }
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const { error } = await supabase
+        .from('vessel_overhaul_projects')
+        .delete()
+        .eq('id', projectId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_projects'] })
+    }
+  })
+
+  const handleDelete = async (project: any) => {
+    if (confirm(`Are you sure you want to delete the project "${project.project_name}"? This will also delete all related tasks and expenses.`)) {
+      try {
+        await deleteMutation.mutateAsync(project.id)
+      } catch (error) {
+        console.error('Error deleting project:', error)
+        alert('Failed to delete project')
+      }
+    }
+  }
 
   // Pagination
   const totalPages = Math.ceil((projects?.length || 0) / itemsPerPage)
@@ -145,33 +171,59 @@ export default function OverhaulsPage() {
                     )}
                     
                     {/* Action Buttons */}
-                    {project.status === 'in_progress' && (
-                      <div className="flex gap-2 mt-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedProject(project)
-                            setShowUseInventory(true)
-                          }}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                        >
-                          <Package className="h-4 w-4" />
-                          Use Inventory
-                        </button>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedProject(project)
-                            setShowReplaceEquipment(true)
-                          }}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                        >
-                          <AlertTriangle className="h-4 w-4" />
-                          Replace Equipment
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2 mt-4 flex-wrap">
+                      {project.status === 'in_progress' && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedProject(project)
+                              setShowUseInventory(true)
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            <Package className="h-4 w-4" />
+                            Use Inventory
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedProject(project)
+                              setShowReplaceEquipment(true)
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                            Replace Equipment
+                          </button>
+                        </>
+                      )}
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingProject(project)
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                        title="Edit project"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </button>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(project)
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+                        title="Delete project"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -195,6 +247,7 @@ export default function OverhaulsPage() {
       )}
 
       {isAdding && <ProjectForm onClose={() => setIsAdding(false)} vessels={vessels || []} />}
+      {editingProject && <ProjectForm project={editingProject} onClose={() => setEditingProject(null)} vessels={vessels || []} />}
       
       {/* Modals */}
       {selectedProject && (
@@ -234,36 +287,107 @@ export default function OverhaulsPage() {
   )
 }
 
-function ProjectForm({ onClose, vessels }: { onClose: () => void, vessels: any[] }) {
+function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: () => void, vessels: any[] }) {
   const [formData, setFormData] = useState({
-    vessel_id: '',
-    project_name: '',
-    start_date: '',
-    end_date: '',
-    status: 'planning',
-    total_budget: '',
-    notes: ''
+    vessel_id: project?.vessel_id || '',
+    project_name: project?.project_name || '',
+    start_date: project?.start_date || '',
+    end_date: project?.end_date || '',
+    status: project?.status || 'planning',
+    total_budget: project?.total_budget || '',
+    notes: project?.notes || '',
+    paid_by_owner_id: project?.paid_by_owner_id || ''
   })
+
+  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
 
+  const { data: owners = [] } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name')
+      if (error) throw error
+      return data || []
+    }
+  })
+
+  const { data: existingSplits = [] } = useQuery({
+    queryKey: ['payment_splits', project?.id],
+    enabled: !!project?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_splits')
+        .select('*, owners(name)')
+        .eq('overhaul_project_id', project.id)
+      if (error) throw error
+      return (data || []).map(split => ({
+        owner_id: split.owner_id,
+        owner_name: (split.owners as any)?.name,
+        amount_paid: split.amount_paid
+      }))
+    }
+  })
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
+      let projectId = project?.id
+
       const cleanData = {
-        ...data,
-        total_budget: data.total_budget ? parseFloat(data.total_budget) : null,
-        start_date: data.start_date || null,
-        end_date: data.end_date || null,
-        notes: data.notes || null
+        ...data.projectData,
+        total_budget: data.projectData.total_budget ? parseFloat(data.projectData.total_budget) : null,
+        start_date: data.projectData.start_date || null,
+        end_date: data.projectData.end_date || null,
+        notes: data.projectData.notes || null
       }
-      const { error } = await supabase
-        .from('vessel_overhaul_projects')
-        .insert([cleanData])
-      if (error) throw error
+
+      // Save project (update or insert)
+      if (project) {
+        const { error } = await supabase
+          .from('vessel_overhaul_projects')
+          .update(cleanData)
+          .eq('id', project.id)
+        if (error) throw error
+      } else {
+        const { data: result, error } = await supabase
+          .from('vessel_overhaul_projects')
+          .insert([cleanData])
+          .select()
+        if (error) throw error
+        projectId = result[0].id
+      }
+
+      // Handle payment splits
+      if (data.paymentSplits && data.paymentSplits.length > 0 && projectId) {
+        // Delete existing splits
+        await supabase
+          .from('payment_splits')
+          .delete()
+          .eq('overhaul_project_id', projectId)
+
+        // Insert new splits
+        const splitsData = data.paymentSplits.map((split: any) => ({
+          overhaul_project_id: projectId,
+          owner_id: split.owner_id,
+          amount_paid: split.amount_paid,
+          payment_date: data.projectData.start_date || new Date().toISOString().split('T')[0]
+        }))
+
+        const { error: splitsError } = await supabase
+          .from('payment_splits')
+          .insert(splitsData)
+        if (splitsError) throw splitsError
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_projects'] })
+      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     },
     onError: (error: any) => {
@@ -273,14 +397,17 @@ function ProjectForm({ onClose, vessels }: { onClose: () => void, vessels: any[]
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate(formData)
+    mutation.mutate({
+      projectData: formData,
+      paymentSplits
+    })
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">New Overhaul Project</h2>
+          <h2 className="text-2xl font-bold mb-6">{project ? 'Edit Overhaul Project' : 'New Overhaul Project'}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -367,6 +494,49 @@ function ProjectForm({ onClose, vessels }: { onClose: () => void, vessels: any[]
               />
             </div>
 
+            {/* Payment Information */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Paid By (Single Owner)
+                </label>
+                <select
+                  value={formData.paid_by_owner_id}
+                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select Owner (if single payer) --</option>
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty if using split payments below
+                </p>
+              </div>
+
+              {formData.total_budget && parseFloat(formData.total_budget) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Split Payments (Optional)
+                  </label>
+                  <PaymentSplitsInput
+                    owners={owners}
+                    totalAmount={parseFloat(formData.total_budget)}
+                    existingSplits={existingSplits}
+                    onChange={setPaymentSplits}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use this if multiple owners are contributing to this overhaul project budget
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
@@ -380,7 +550,7 @@ function ProjectForm({ onClose, vessels }: { onClose: () => void, vessels: any[]
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {mutation.isPending ? 'Saving...' : 'Create'}
+                {mutation.isPending ? 'Saving...' : project ? 'Update' : 'Create'}
               </button>
             </div>
           </form>

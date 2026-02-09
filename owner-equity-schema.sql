@@ -83,7 +83,7 @@ SELECT
     COALESCE(SUM(vm.cost), 0) as movement_costs_paid,
     
     -- Land purchases paid by this owner
-    COALESCE(SUM(lp.total_amount), 0) as land_purchases_paid,
+    COALESCE(SUM(lp.purchase_price), 0) as land_purchases_paid,
     
     -- Total paid by owner
     o.initial_capital + 
@@ -92,7 +92,7 @@ SELECT
     COALESCE(SUM(e.amount), 0) + 
     COALESCE(SUM(sp.total_amount), 0) + 
     COALESCE(SUM(vm.cost), 0) +
-    COALESCE(SUM(lp.total_amount), 0) as total_invested,
+    COALESCE(SUM(lp.purchase_price), 0) as total_invested,
     
     -- Net withdrawals
     COALESCE(SUM(cw.amount), 0) as net_withdrawals,
@@ -104,7 +104,7 @@ SELECT
     COALESCE(SUM(e.amount), 0) + 
     COALESCE(SUM(sp.total_amount), 0) + 
     COALESCE(SUM(vm.cost), 0) +
-    COALESCE(SUM(lp.total_amount), 0) -
+    COALESCE(SUM(lp.purchase_price), 0) -
     COALESCE(SUM(cw.amount), 0) as current_equity
 
 FROM owners o

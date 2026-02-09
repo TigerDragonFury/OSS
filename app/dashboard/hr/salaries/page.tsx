@@ -3,11 +3,13 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import Pagination from '@/components/Pagination'
+import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function SalariesPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
   const queryClient = useQueryClient()
@@ -45,6 +47,30 @@ export default function SalariesPage() {
       return data
     }
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from('salary_payments')
+        .delete()
+        .eq('id', paymentId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salary_payments'] })
+    }
+  })
+
+  const handleDelete = async (payment: any) => {
+    if (confirm(`Delete salary payment for ${payment.employees?.full_name || 'this employee'}?`)) {
+      try {
+        await deleteMutation.mutateAsync(payment.id)
+      } catch (error) {
+        console.error('Error deleting payment:', error)
+        alert('Failed to delete payment')
+      }
+    }
+  }
 
   const totalPaid = payments?.reduce((sum, payment) => sum + (payment.total_amount || 0), 0) || 0
 
@@ -116,6 +142,9 @@ export default function SalariesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Payment Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -149,6 +178,24 @@ export default function SalariesPage() {
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {payment.payment_date}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setEditingPayment(payment)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Edit payment"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(payment)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete payment"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -171,55 +218,127 @@ export default function SalariesPage() {
       )}
 
       {isAdding && <PaymentForm onClose={() => setIsAdding(false)} employees={employees || []} />}
+      {editingPayment && <PaymentForm payment={editingPayment} onClose={() => setEditingPayment(null)} employees={employees || []} />}
     </div>
   )
 }
 
-function PaymentForm({ onClose, employees }: { onClose: () => void, employees: any[] }) {
+function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: () => void, employees: any[] }) {
   const [formData, setFormData] = useState({
-    employee_id: '',
-    payment_date: new Date().toISOString().split('T')[0],
-    period_start: '',
-    period_end: '',
-    base_amount: '',
-    bonuses: '0',
-    deductions: '0',
-    payment_method: 'bank_transfer',
-    notes: ''
+    employee_id: payment?.employee_id || '',
+    payment_date: payment?.payment_date || new Date().toISOString().split('T')[0],
+    period_start: payment?.period_start || '',
+    period_end: payment?.period_end || '',
+    base_amount: payment?.base_amount?.toString() || '',
+    bonuses: payment?.bonuses?.toString() || '0',
+    deductions: payment?.deductions?.toString() || '0',
+    payment_method: payment?.payment_method || 'bank_transfer',
+    notes: payment?.notes || '',
+    paid_by_owner_id: payment?.paid_by_owner_id || ''
   })
+
+  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
 
   const selectedEmployee = employees.find(e => e.id === formData.employee_id)
 
+  const { data: owners = [] } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('*')
+        .eq('status', 'active')
+        .order('name')
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: existingSplits = [] } = useQuery({
+    queryKey: ['payment_splits', payment?.id],
+    enabled: !!payment?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_splits')
+        .select('*, owners(name)')
+        .eq('salary_payment_id', payment.id)
+      if (error) throw error
+      return (data || []).map(split => ({
+        owner_id: split.owner_id,
+        owner_name: (split.owners as any)?.name,
+        amount_paid: split.amount_paid
+      }))
+    }
+  })
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const base = parseFloat(data.base_amount) || 0
-      const bonuses = parseFloat(data.bonuses) || 0
-      const deductions = parseFloat(data.deductions) || 0
+      const base = parseFloat(data.paymentData.base_amount) || 0
+      const bonuses = parseFloat(data.paymentData.bonuses) || 0
+      const deductions = parseFloat(data.paymentData.deductions) || 0
       const total = base + bonuses - deductions
 
       const cleanData = {
-        employee_id: data.employee_id,
-        payment_date: data.payment_date,
-        period_start: data.period_start,
-        period_end: data.period_end,
+        employee_id: data.paymentData.employee_id,
+        payment_date: data.paymentData.payment_date,
+        period_start: data.paymentData.period_start,
+        period_end: data.paymentData.period_end,
         base_amount: base,
         bonuses: bonuses,
         deductions: deductions,
         total_amount: total,
-        payment_method: data.payment_method,
-        notes: data.notes || null
+        payment_method: data.paymentData.payment_method,
+        notes: data.paymentData.notes || null,
+        paid_by_owner_id: data.paymentData.paid_by_owner_id
       }
 
-      const { error } = await supabase
-        .from('salary_payments')
-        .insert([cleanData])
-      if (error) throw error
+      let paymentId = payment?.id
+
+      // Save payment (update or insert)
+      if (payment) {
+        const { error } = await supabase
+          .from('salary_payments')
+          .update(cleanData)
+          .eq('id', payment.id)
+        if (error) throw error
+      } else {
+        const { data: result, error } = await supabase
+          .from('salary_payments')
+          .insert([cleanData])
+          .select()
+        if (error) throw error
+        paymentId = result[0].id
+      }
+
+      // Handle payment splits
+      if (data.paymentSplits && data.paymentSplits.length > 0 && paymentId) {
+        // Delete existing splits
+        await supabase
+          .from('payment_splits')
+          .delete()
+          .eq('salary_payment_id', paymentId)
+
+        // Insert new splits
+        const splitsData = data.paymentSplits.map((split: any) => ({
+          salary_payment_id: paymentId,
+          owner_id: split.owner_id,
+          amount_paid: split.amount_paid,
+          payment_date: data.paymentData.payment_date
+        }))
+
+        const { error: splitsError } = await supabase
+          .from('payment_splits')
+          .insert(splitsData)
+        if (splitsError) throw splitsError
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['salary_payments'] })
+      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     },
     onError: (error: any) => {
@@ -229,14 +348,25 @@ function PaymentForm({ onClose, employees }: { onClose: () => void, employees: a
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate(formData)
+    
+    // Clean up formData - convert empty strings to null for UUID fields
+    const cleanedData = {
+      ...formData,
+      paid_by_owner_id: formData.paid_by_owner_id || null,
+      employee_id: formData.employee_id || null
+    }
+    
+    mutation.mutate({
+      paymentData: cleanedData,
+      paymentSplits
+    })
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Record Salary Payment</h2>
+          <h2 className="text-2xl font-bold mb-6">{payment ? 'Edit Salary Payment' : 'Record Salary Payment'}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -371,6 +501,33 @@ function PaymentForm({ onClose, employees }: { onClose: () => void, employees: a
               />
             </div>
 
+            {((parseFloat(formData.base_amount) || 0) + (parseFloat(formData.bonuses) || 0) - (parseFloat(formData.deductions) || 0)) > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Single Owner Payment</label>
+                  <select
+                    value={formData.paid_by_owner_id}
+                    onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Or split payment below</option>
+                    {owners.map((owner: any) => (
+                      <option key={owner.id} value={owner.id}>{owner.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <PaymentSplitsInput
+                  owners={owners}
+                  totalAmount={(parseFloat(formData.base_amount) || 0) + (parseFloat(formData.bonuses) || 0) - (parseFloat(formData.deductions) || 0)}
+                  existingSplits={existingSplits}
+                  onChange={setPaymentSplits}
+                />
+              </div>
+            )}
+
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
@@ -384,7 +541,7 @@ function PaymentForm({ onClose, employees }: { onClose: () => void, employees: a
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {mutation.isPending ? 'Saving...' : 'Record Payment'}
+                {mutation.isPending ? 'Saving...' : (payment ? 'Update Payment' : 'Record Payment')}
               </button>
             </div>
           </form>

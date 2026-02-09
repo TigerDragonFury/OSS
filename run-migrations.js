@@ -49,7 +49,8 @@ const MIGRATION_FILES = [
   'add-payment-method-to-expenses.sql',
   'fix-land-scrap-sales-schema.sql',
   'update-companies-types.sql',
-  'owner-equity-schema.sql' // Owner equity tracking - who paid what
+  'owner-equity-schema.sql', // Owner equity tracking - who paid what
+  'owner-partial-payments-schema.sql' // Allow split payments between owners
 ];
 
 // Read environment variables or prompt for connection

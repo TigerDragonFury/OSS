@@ -83,9 +83,20 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
   })
 
   const activeRentals = vesselRentals?.filter(r => r.status === 'active').length || 0
+  const completedRentals = vesselRentals?.filter(r => r.status === 'completed').length || 0
+  
+  // Calculate rental income from vessel_rentals table (active + completed rentals that are paid)
+  const totalRentalIncome = vesselRentals?.filter(r => 
+    r.payment_status === 'paid' && 
+    (r.status === 'active' || r.status === 'completed')
+  ).reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
+  
+  const pendingRentals = vesselRentals?.filter(r => r.status === 'pending').length || 0
+  
+  // Payments stats (from rental_payments table)
   const completedPayments = allPayments?.filter(p => p.status === 'completed').length || 0
-  const totalRentalIncome = allPayments?.filter(p => p.status === 'completed').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
   const pendingPayments = allPayments?.filter(p => p.status === 'pending').length || 0
+  const totalPaymentsReceived = allPayments?.filter(p => p.status === 'completed').reduce((sum, p) => sum + (p.amount || 0), 0) || 0
 
   return (
     <div className="space-y-6">

@@ -10,20 +10,19 @@ FROM information_schema.columns
 WHERE table_name = 'vessel_financial_summary'
 ORDER BY ordinal_position;
 
--- Step 3: See what the VIEW is currently returning for your vessel
+-- Step 3: See what the VIEW is currently returning for your vessel (using OLD column names)
+-- This will show the BEFORE state - these column names will be different after the fix
 SELECT 
     id,
     name,
     purchase_price,
-    total_rental_income,
-    total_equipment_sales,
-    total_scrap_sales,
     movement_costs,
+    COALESCE(equipment_sales, 0) as old_equipment_sales,  -- Old column name
+    COALESCE(scrap_sales, 0) as old_scrap_sales,          -- Old column name
+    COALESCE(total_rental_income, 0) as total_rental_income,
     drydock_costs,
     overhaul_costs,
     other_expenses,
-    total_expenses,
-    total_overhaul_expenses,
     net_profit_loss
 FROM vessel_financial_summary
 WHERE id = '2721c7b2-c715-4f0a-9369-bcf0e4816e2b';

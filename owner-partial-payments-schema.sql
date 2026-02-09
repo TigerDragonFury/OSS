@@ -179,6 +179,9 @@ LEFT JOIN vessel_overhaul_projects op ON o.id = op.paid_by_owner_id
 WHERE o.status = 'active'
 GROUP BY o.id, o.name, o.ownership_percentage, o.initial_capital;
 
+-- Disable RLS on payment_splits table for easier access
+ALTER TABLE payment_splits DISABLE ROW LEVEL SECURITY;
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_payment_splits_owner ON payment_splits(owner_id);
 CREATE INDEX IF NOT EXISTS idx_payment_splits_vessel ON payment_splits(vessel_id);

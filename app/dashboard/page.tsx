@@ -1,3 +1,4 @@
+// Dashboard page - Main overview
 import { createClient } from '@/lib/supabase/server'
 import { DollarSign, Ship, LandPlot, Users, TrendingUp, TrendingDown, Package, Wrench, Calendar, Anchor } from 'lucide-react'
 import Link from 'next/link'
@@ -39,7 +40,7 @@ async function getDashboardData() {
     
     // Expenses
     supabase.from('vessels').select('purchase_price'),
-    supabase.from('salary_payments').select('amount'),
+    supabase.from('salary_payments').select('total_amount'),
     supabase.from('expenses').select('amount'),
     supabase.from('expenses').select('amount').eq('project_type', 'vessel'),
     
@@ -65,7 +66,7 @@ async function getDashboardData() {
   const totalWarehouseSales = warehouseSalesData.data?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
   const totalRentalIncome = rentalIncomeData.data?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
   const totalVesselPurchases = vesselPurchasesData.data?.reduce((sum, v) => sum + (v.purchase_price || 0), 0) || 0
-  const totalSalaries = salariesData.data?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0
+  const totalSalaries = salariesData.data?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
   const totalExpenses = expensesData.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
   const totalOverhaulExpenses = overhaulExpensesData.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
   

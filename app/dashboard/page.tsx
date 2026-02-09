@@ -5,16 +5,80 @@ import Link from 'next/link'
 async function getDashboardData() {
   const supabase = await createClient()
   
-  // Get direct income and expenses totals (instead of profit_loss_summary view)
-  const { data: incomeData } = await supabase
-    .from('income_records')
-    .select('amount')
-  const totalIncome = incomeData?.reduce((sum, i) => sum + (i.amount || 0), 0) || 0
+  // ============================================
+  // INCOME CALCULATIONS (All Revenue Sources)
+  // ============================================
   
+  // Vessel Equipment Sales Income
+  const { data: equipmentSalesData } = await supabase
+    .from('vessel_equipment_sales')
+    .select('sale_price')
+  const totalEquipmentSales = equipmentSalesData?.reduce((sum, s) => sum + (s.sale_price || 0), 0) || 0
+  
+  // Vessel Scrap Sales Income
+  const { data: vesselScrapData } = await supabase
+    .from('vessel_scrap_sales')
+    .select('total_amount')
+  const totalVesselScrap = vesselScrapData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  
+  // Land Scrap Sales Income
+  const { data: landScrapData } = await supabase
+    .from('land_scrap_sales')
+    .select('total_amount')
+  const totalLandScrap = landScrapData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  
+  // Warehouse Sales Income
+  const { data: warehouseSalesData } = await supabase
+    .from('warehouse_sales')
+    .select('total_amount')
+  const totalWarehouseSales = warehouseSalesData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  
+  // Vessel Rental Income (only active/completed rentals with paid status)
+  const { data: rentalIncomeData } = await supabase
+    .from('vessel_rentals')
+    .select('total_amount, status')
+    .eq('payment_status', 'paid')
+    .in('status', ['active', 'completed'])
+  const totalRentalIncome = rentalIncomeData?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
+  
+  // Total Income from all sources
+  const totalIncome = totalEquipmentSales + totalVesselScrap + totalLandScrap + totalWarehouseSales + totalRentalIncome
+  
+  // ============================================
+  // EXPENSE CALCULATIONS (All Cost Sources)
+  // ============================================
+  
+  // Vessel Purchase Costs
+  const { data: vesselPurchasesData } = await supabase
+    .from('vessels')
+    .select('purchase_price')
+  const totalVesselPurchases = vesselPurchasesData?.reduce((sum, v) => sum + (v.purchase_price || 0), 0) || 0
+  
+  // Employee Salaries
+  const { data: salariesData } = await supabase
+    .from('salary_payments')
+    .select('amount')
+  const totalSalaries = salariesData?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0
+  
+  // General Expenses (includes overhauls, maintenance, etc.)
   const { data: expenseData } = await supabase
     .from('expenses')
     .select('amount')
   const totalExpenses = expenseData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+  
+  // Total Expenses from all sources
+  const totalExpensesAll = totalVesselPurchases + totalSalaries + totalExpenses
+  
+  // Get overhaul expenses breakdown
+  const { data: overhaulExpenses } = await supabase
+    .from('expenses')
+    .select('amount')
+    .eq('project_type', 'vessel')
+  const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+  
+  // ============================================
+  // COUNTS AND LISTS
+  // ============================================
   
   // Get vessels count and stats
   const { count: vesselsCount } = await supabase
@@ -45,14 +109,7 @@ async function getDashboardData() {
     .order('start_date', { ascending: false })
     .limit(5)
   
-  // Get rental income (sum of all paid rentals)
-  const { data: rentalIncomeData } = await supabase
-    .from('vessel_rentals')
-    .select('total_amount')
-    .eq('payment_status', 'paid')
-  const totalRentalIncome = rentalIncomeData?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
-  
-  // Get active overhaul projects - FIXED: column is 'status' not 'project_status'
+  // Get active overhaul projects
   const { data: activeOverhauls, count: activeOverhaulsCount } = await supabase
     .from('vessel_overhaul_projects')
     .select('*, vessels(name)', { count: 'exact' })
@@ -60,13 +117,13 @@ async function getDashboardData() {
     .order('start_date', { ascending: false })
     .limit(5)
   
-  // Get marine inventory count - FIXED: table is 'marine_inventory' not 'warehouse_inventory'
+  // Get marine inventory count
   const { count: inventoryCount } = await supabase
     .from('marine_inventory')
     .select('*', { count: 'exact', head: true })
     .gt('quantity_in_stock', 0)
   
-  // Get low stock items - FIXED: simplified query without RPC
+  // Get low stock items
   const { data: lowStockItems } = await supabase
     .from('marine_inventory')
     .select('equipment_name, quantity_in_stock, minimum_stock_level')
@@ -74,7 +131,7 @@ async function getDashboardData() {
     .order('quantity_in_stock', { ascending: true })
     .limit(10)
   
-  // Filter low stock items where quantity < minimum (do it in JS since SQL is complex)
+  // Filter low stock items where quantity < minimum
   const filteredLowStock = lowStockItems?.filter(item => 
     item.quantity_in_stock < (item.minimum_stock_level || 10)
   ).slice(0, 5) || []
@@ -93,30 +150,29 @@ async function getDashboardData() {
     .order('created_at', { ascending: false })
     .limit(5)
   
-  // Calculate total overhaul expenses
-  const { data: overhaulExpenses } = await supabase
-    .from('expenses')
-    .select('amount')
-    .eq('project_type', 'vessel')
-  const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-  
   return {
     totalIncome,
-    totalExpenses,
+    totalExpenses: totalExpensesAll,
+    totalRentalIncome,
+    totalEquipmentSales,
+    totalVesselScrap,
+    totalLandScrap,
+    totalWarehouseSales,
+    totalVesselPurchases,
+    totalSalaries,
+    totalOverhaulExpenses,
     vesselsCount: vesselsCount || 0,
     activeVesselsCount: activeVesselsCount || 0,
     landsCount: landsCount || 0,
     employeesCount: employeesCount || 0,
     activeRentals: activeRentals || [],
     activeRentalsCount: activeRentalsCount || 0,
-    totalRentalIncome,
     activeOverhauls: activeOverhauls || [],
     activeOverhaulsCount: activeOverhaulsCount || 0,
     inventoryCount: inventoryCount || 0,
     lowStockItems: filteredLowStock,
     recentVessels: recentVessels || [],
-    recentLands: recentLands || [],
-    totalOverhaulExpenses
+    recentLands: recentLands || []
   }
 }
 
@@ -136,16 +192,35 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="w-full">
               <p className="text-sm font-medium text-gray-600">Total Income</p>
               <p className="text-2xl font-bold text-green-600 mt-2">
                 {data.totalIncome.toLocaleString()} AED
               </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Rental: {data.totalRentalIncome.toLocaleString()} AED
-              </p>
+              <div className="text-xs text-gray-500 mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span>Rentals:</span>
+                  <span className="font-medium">{data.totalRentalIncome.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Equipment Sales:</span>
+                  <span className="font-medium">{data.totalEquipmentSales.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Vessel Scrap:</span>
+                  <span className="font-medium">{data.totalVesselScrap.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Land Scrap:</span>
+                  <span className="font-medium">{data.totalLandScrap.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Warehouse:</span>
+                  <span className="font-medium">{data.totalWarehouseSales.toLocaleString()}</span>
+                </div>
+              </div>
             </div>
-            <div className="bg-green-100 rounded-full p-3">
+            <div className="bg-green-100 rounded-full p-3 self-start">
               <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
           </div>
@@ -153,16 +228,27 @@ export default async function DashboardPage() {
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="w-full">
               <p className="text-sm font-medium text-gray-600">Total Expenses</p>
               <p className="text-2xl font-bold text-red-600 mt-2">
                 {data.totalExpenses.toLocaleString()} AED
               </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Overhaul: {data.totalOverhaulExpenses.toLocaleString()} AED
-              </p>
+              <div className="text-xs text-gray-500 mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span>Vessel Purchases:</span>
+                  <span className="font-medium">{data.totalVesselPurchases.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Salaries:</span>
+                  <span className="font-medium">{data.totalSalaries.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Overhauls:</span>
+                  <span className="font-medium">{data.totalOverhaulExpenses.toLocaleString()}</span>
+                </div>
+              </div>
             </div>
-            <div className="bg-red-100 rounded-full p-3">
+            <div className="bg-red-100 rounded-full p-3 self-start">
               <TrendingDown className="h-6 w-6 text-red-600" />
             </div>
           </div>

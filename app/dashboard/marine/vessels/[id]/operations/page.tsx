@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { 
   ArrowLeft, Wrench, Users, BookOpen, FileText, Bell, 
   Package, Anchor, AlertCircle, Calendar, Phone, Heart,
-  DollarSign, ClipboardList, Tool
+  DollarSign, ClipboardList, Clock
 } from 'lucide-react'
 
 export default function VesselOperationsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -48,7 +48,7 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
       
       return {
         openIssues: open.count || 0,
-        overdueSer vices: overdue.count || 0,
+        overdueServices: overdue.count || 0,
         activeCrew: crew.count || 0,
         activeTasks: tasks.count || 0,
         upcomingReminders: reminders.count || 0,
@@ -186,7 +186,7 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
     {
       title: 'Time Tracking',
       description: 'Track time spent on repairs and work',
-      icon: Tool,
+      icon: Clock,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/time-tracking`,
       color: 'amber',
       count: null,

@@ -189,7 +189,7 @@ export default async function OwnerEquityPage() {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         vessel.paid_by_owner_id ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {vessel.owners?.name || 'Unassigned'}
+                        {(vessel.owners as any)?.name || 'Unassigned'}
                       </span>
                     </td>
                   </tr>
@@ -231,7 +231,7 @@ export default async function OwnerEquityPage() {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         expense.paid_by_owner_id ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {expense.owners?.name || 'Unassigned'}
+                        {(expense.owners as any)?.name || 'Unassigned'}
                       </span>
                     </td>
                   </tr>
@@ -262,7 +262,7 @@ export default async function OwnerEquityPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {data.contributions.map((contrib) => (
                     <tr key={contrib.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{contrib.owners?.name}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{(contrib.owners as any)?.name}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {contrib.contribution_date ? new Date(contrib.contribution_date).toLocaleDateString() : 'N/A'}
                       </td>

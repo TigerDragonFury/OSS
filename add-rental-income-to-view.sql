@@ -13,20 +13,36 @@ SELECT
     v.name,
     v.purchase_price,
     COALESCE(SUM(vm.cost), 0) as movement_costs,
-    COALESCE(SUM(ves.sale_price), 0) as equipment_sales,
-    COALESCE(SUM(vss.total_amount), 0) as scrap_sales,
-    COALESCE(SUM(vr.total_amount), 0) as total_rental_income,
+    COALESCE(SUM(ves.sale_price), 0) as total_equipment_sales,
+    COALESCE(SUM(vss.total_amount), 0) as total_scrap_sales,
+    -- Only sum rentals that are paid AND (active OR completed)
+    COALESCE(SUM(CASE 
+        WHEN vr.payment_status = 'paid' AND vr.status IN ('active', 'completed') 
+        THEN vr.total_amount 
+        ELSE 0 
+    END), 0) as total_rental_income,
     COALESCE(SUM(dr.total_cost), 0) as drydock_costs,
     COALESCE(SUM(ot.actual_cost), 0) as overhaul_costs,
     COALESCE(SUM(e.amount), 0) as other_expenses,
-    (COALESCE(SUM(ves.sale_price), 0) + COALESCE(SUM(vss.total_amount), 0) + COALESCE(SUM(vr.total_amount), 0)) - 
-    (v.purchase_price + COALESCE(SUM(vm.cost), 0) + COALESCE(SUM(dr.total_cost), 0) + 
-     COALESCE(SUM(ot.actual_cost), 0) + COALESCE(SUM(e.amount), 0)) as net_profit_loss
+    COALESCE(SUM(e.amount), 0) as total_expenses,
+    COALESCE(SUM(ot.actual_cost), 0) as total_overhaul_expenses,
+    (COALESCE(SUM(ves.sale_price), 0) + 
+     COALESCE(SUM(vss.total_amount), 0) + 
+     COALESCE(SUM(CASE 
+        WHEN vr.payment_status = 'paid' AND vr.status IN ('active', 'completed') 
+        THEN vr.total_amount 
+        ELSE 0 
+     END), 0)) - 
+    (v.purchase_price + 
+     COALESCE(SUM(vm.cost), 0) + 
+     COALESCE(SUM(dr.total_cost), 0) + 
+     COALESCE(SUM(ot.actual_cost), 0) + 
+     COALESCE(SUM(e.amount), 0)) as net_profit_loss
 FROM vessels v
 LEFT JOIN vessel_movements vm ON v.id = vm.vessel_id
 LEFT JOIN vessel_equipment_sales ves ON v.id = ves.vessel_id
 LEFT JOIN vessel_scrap_sales vss ON v.id = vss.vessel_id
-LEFT JOIN vessel_rentals vr ON v.id = vr.vessel_id AND vr.total_amount IS NOT NULL
+LEFT JOIN vessel_rentals vr ON v.id = vr.vessel_id
 LEFT JOIN drydock_records dr ON v.id = dr.vessel_id
 LEFT JOIN vessel_overhaul_projects vop ON v.id = vop.vessel_id
 LEFT JOIN overhaul_tasks ot ON vop.id = ot.project_id

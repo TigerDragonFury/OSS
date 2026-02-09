@@ -1,6 +1,17 @@
 -- Owner Partial Payments Schema
 -- Allows splitting payments between multiple owners for the same expense/purchase
 
+-- Add paid_by_owner_id to expenses table (for backward compatibility)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'expenses' AND column_name = 'paid_by_owner_id'
+    ) THEN
+        ALTER TABLE expenses ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
+    END IF;
+END $$;
+
 -- Add paid_by_owner_id to vessel_overhaul_projects table (for backward compatibility)
 DO $$ 
 BEGIN
@@ -9,6 +20,42 @@ BEGIN
         WHERE table_name = 'vessel_overhaul_projects' AND column_name = 'paid_by_owner_id'
     ) THEN
         ALTER TABLE vessel_overhaul_projects ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
+    END IF;
+END $$;
+
+-- Add paid_by_owner_id to other tables if they don't exist
+DO $$ 
+BEGIN
+    -- Vessels
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vessels' AND column_name = 'paid_by_owner_id'
+    ) THEN
+        ALTER TABLE vessels ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
+    END IF;
+    
+    -- Land Purchases
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'land_purchases' AND column_name = 'paid_by_owner_id'
+    ) THEN
+        ALTER TABLE land_purchases ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
+    END IF;
+    
+    -- Vessel Movements
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vessel_movements' AND column_name = 'paid_by_owner_id'
+    ) THEN
+        ALTER TABLE vessel_movements ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
+    END IF;
+    
+    -- Salary Payments
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'salary_payments' AND column_name = 'paid_by_owner_id'
+    ) THEN
+        ALTER TABLE salary_payments ADD COLUMN paid_by_owner_id UUID REFERENCES owners(id);
     END IF;
 END $$;
 

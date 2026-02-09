@@ -344,46 +344,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_maintenance_issues_updated_at ON vessel_maintenance_issues;
 CREATE TRIGGER update_maintenance_issues_updated_at
     BEFORE UPDATE ON vessel_maintenance_issues
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_service_schedules_updated_at ON vessel_service_schedules;
 CREATE TRIGGER update_service_schedules_updated_at
     BEFORE UPDATE ON vessel_service_schedules
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_crew_assignments_updated_at ON vessel_crew_assignments;
 CREATE TRIGGER update_crew_assignments_updated_at
     BEFORE UPDATE ON vessel_crew_assignments
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON vessel_tasks;
 CREATE TRIGGER update_tasks_updated_at
     BEFORE UPDATE ON vessel_tasks
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_incident_logs_updated_at ON vessel_incident_logs;
 CREATE TRIGGER update_incident_logs_updated_at
     BEFORE UPDATE ON vessel_incident_logs
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_spares_updated_at ON vessel_spares_inventory;
 CREATE TRIGGER update_spares_updated_at
     BEFORE UPDATE ON vessel_spares_inventory
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_provisions_updated_at ON vessel_provisions;
 CREATE TRIGGER update_provisions_updated_at
     BEFORE UPDATE ON vessel_provisions
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_documents_updated_at ON vessel_documents;
 CREATE TRIGGER update_documents_updated_at
     BEFORE UPDATE ON vessel_documents
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_reminders_updated_at ON vessel_reminders;
 CREATE TRIGGER update_reminders_updated_at
     BEFORE UPDATE ON vessel_reminders
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_contacts_updated_at ON vessel_contacts;
 CREATE TRIGGER update_contacts_updated_at
     BEFORE UPDATE ON vessel_contacts
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
 
+DROP TRIGGER IF EXISTS update_guests_updated_at ON vessel_guest_preferences;
 CREATE TRIGGER update_guests_updated_at
     BEFORE UPDATE ON vessel_guest_preferences
     FOR EACH ROW EXECUTE FUNCTION update_vessel_ops_updated_at();
@@ -397,6 +408,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS calculate_maintenance_cost ON vessel_maintenance_issues;
 CREATE TRIGGER calculate_maintenance_cost
     BEFORE INSERT OR UPDATE OF labor_cost, parts_cost ON vessel_maintenance_issues
     FOR EACH ROW EXECUTE FUNCTION calculate_maintenance_total_cost();
@@ -421,6 +433,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS auto_next_service_date ON vessel_service_schedules;
 CREATE TRIGGER auto_next_service_date
     BEFORE INSERT OR UPDATE OF last_service_date, frequency_type, frequency_value ON vessel_service_schedules
     FOR EACH ROW EXECUTE FUNCTION calculate_next_service_date();

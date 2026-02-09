@@ -19,7 +19,7 @@ export default function TaskAssignmentsPage({ params }: { params: Promise<{ id: 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vessel_tasks')
-        .select('*, employees(first_name, last_name)')
+        .select('*, employees(full_name)')
         .eq('vessel_id', resolvedParams.id)
         .order('due_date', { ascending: true })
       if (error) {
@@ -186,7 +186,7 @@ export default function TaskAssignmentsPage({ params }: { params: Promise<{ id: 
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {task.employees 
-                              ? `${task.employees.first_name} ${task.employees.last_name}`
+                              ? task.employees.full_name
                               : 'Unassigned'}
                           </td>
                           <td className="px-6 py-4">

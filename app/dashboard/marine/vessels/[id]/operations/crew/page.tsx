@@ -19,7 +19,7 @@ export default function CrewManagementPage({ params }: { params: Promise<{ id: s
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vessel_crew_assignments')
-        .select('*, employees(first_name, last_name, email, phone)')
+        .select('*, employees(full_name, email, phone)')
         .eq('vessel_id', resolvedParams.id)
         .order('assignment_start_date', { ascending: false })
       if (error) {
@@ -162,7 +162,7 @@ export default function CrewManagementPage({ params }: { params: Promise<{ id: s
                         <td className="px-6 py-4">
                           <div>
                             <p className="font-medium text-gray-900">
-                              {assignment.employees?.first_name} {assignment.employees?.last_name}
+                              {assignment.employees?.full_name}
                             </p>
                             <p className="text-sm text-gray-500">{assignment.employees?.email || 'No email'}</p>
                           </div>

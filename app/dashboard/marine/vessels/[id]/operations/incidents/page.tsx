@@ -37,7 +37,7 @@ export default function IncidentReportsPage({ params }: { params: Promise<{ id: 
     queryFn: async () => {
       let query = supabase
         .from('vessel_incident_logs')
-        .select('*, employees(first_name, last_name)')
+        .select('*, employees(full_name)')
         .eq('vessel_id', resolvedParams.id)
       
       if (filterType !== 'all') {

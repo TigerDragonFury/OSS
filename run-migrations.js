@@ -41,6 +41,7 @@ const MIGRATION_FILES = [
   'supabase-schema.sql',
   'auth-schema.sql',
   'warehouse-schema.sql',
+  'vessel-operations-schema.sql', // Operations tables (maintenance, crew, tasks, logs, documents, etc.)
   'fix-rls-policies.sql',
   'sync-completed-expenses.sql',
   'auto-update-total-spent.sql',

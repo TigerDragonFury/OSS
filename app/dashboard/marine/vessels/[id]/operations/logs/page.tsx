@@ -32,7 +32,7 @@ export default function VesselLogsPage({ params }: { params: Promise<{ id: strin
     queryFn: async () => {
       let query = supabase
         .from('vessel_log_entries')
-        .select('*, employees(first_name, last_name)')
+        .select('*, employees(full_name)')
         .eq('vessel_id', resolvedParams.id)
       
       if (filterType !== 'all') {
@@ -221,7 +221,7 @@ export default function VesselLogsPage({ params }: { params: Promise<{ id: strin
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {log.employees 
-                              ? `${log.employees.first_name} ${log.employees.last_name}`
+                              ? log.employees.full_name
                               : log.logged_by_name || 'Unknown'}
                           </td>
                           <td className="px-6 py-4">

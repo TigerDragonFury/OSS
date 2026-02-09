@@ -30,7 +30,7 @@ export default function VesselPage({ params }: { params: Promise<{ id: string }>
       const { data, error } = await supabase
         .from('vessel_financial_summary')
         .select('*')
-        .eq('vessel_id', resolvedParams.id)
+        .eq('id', resolvedParams.id)
         .single()
       if (error) console.error('Financial summary error:', error)
       return data || {

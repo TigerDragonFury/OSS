@@ -51,6 +51,22 @@
     ALTER TABLE crew_assignments DISABLE ROW LEVEL SECURITY;
     ALTER TABLE crew_certifications DISABLE ROW LEVEL SECURITY;
 
+    -- Vessel Operations Tables (from vessel-operations-schema.sql)
+    ALTER TABLE vessel_maintenance_issues DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE maintenance_time_logs DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_service_schedules DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_crew_assignments DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_tasks DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_log_entries DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_incident_logs DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_spares_inventory DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_provisions DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_documents DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_reminders DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_contacts DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_guest_preferences DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE vessel_operational_costs DISABLE ROW LEVEL SECURITY;
+
     -- System Tables
     ALTER TABLE roles DISABLE ROW LEVEL SECURITY;
     ALTER TABLE user_roles DISABLE ROW LEVEL SECURITY;

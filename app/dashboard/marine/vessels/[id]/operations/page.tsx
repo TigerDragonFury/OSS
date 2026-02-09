@@ -66,9 +66,10 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
   }
 
   const operationModules = [
+    // === MAINTENANCE & PROJECTS ===
     {
-      title: 'Maintenance Issues',
-      description: 'Track and manage all maintenance work orders',
+      title: 'Maintenance & Overhauls',
+      description: 'Track maintenance issues and major overhaul projects',
       icon: Wrench,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/maintenance`,
       color: 'orange',
@@ -84,9 +85,31 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
       count: maintenanceCounts?.overdueServices || 0,
       countLabel: 'Overdue'
     },
+    
+    // === EQUIPMENT & ASSETS ===
+    {
+      title: 'Equipment & Assets',
+      description: 'Installed equipment, sales, scrap, and replacements',
+      icon: Package,
+      href: `/dashboard/marine/vessels/${vessel.id}/operations/equipment`,
+      color: 'teal',
+      count: null,
+      countLabel: null
+    },
+    {
+      title: 'Parts & Inventory',
+      description: 'Track parts used, spares inventory, and provisions',
+      icon: Package,
+      href: `/dashboard/marine/vessels/${vessel.id}/operations/inventory`,
+      color: 'indigo',
+      count: null,
+      countLabel: null
+    },
+    
+    // === CREW & OPERATIONS ===
     {
       title: 'Crew Management',
-      description: 'Manage crew assignments and tasks',
+      description: 'Manage crew assignments and positions',
       icon: Users,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/crew`,
       color: 'purple',
@@ -98,16 +121,38 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
       description: 'Assign and track crew tasks',
       icon: ClipboardList,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/tasks`,
-      color: 'indigo',
+      color: 'cyan',
       count: maintenanceCounts?.activeTasks || 0,
       countLabel: 'Active Tasks'
     },
+    
+    // === FINANCIAL ===
+    {
+      title: 'Rentals & Income',
+      description: 'Manage vessel rentals and track rental payments',
+      icon: DollarSign,
+      href: `/dashboard/marine/vessels/${vessel.id}/operations/rentals`,
+      color: 'green',
+      count: null,
+      countLabel: null
+    },
+    {
+      title: 'Financial Overview',
+      description: 'All expenses, costs, revenue, and P&L tracking',
+      icon: DollarSign,
+      href: `/dashboard/marine/vessels/${vessel.id}/operations/financial`,
+      color: 'emerald',
+      count: null,
+      countLabel: null
+    },
+    
+    // === LOGS & RECORDS ===
     {
       title: 'Vessel Logs',
       description: 'Maintain vessel logbook entries',
       icon: BookOpen,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/logs`,
-      color: 'green',
+      color: 'blue',
       count: null,
       countLabel: null
     },
@@ -120,24 +165,8 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
       count: null,
       countLabel: null
     },
-    {
-      title: 'Spares Inventory',
-      description: 'Track spare parts and supplies',
-      icon: Package,
-      href: `/dashboard/marine/vessels/${vessel.id}/operations/spares`,
-      color: 'teal',
-      count: null,
-      countLabel: null
-    },
-    {
-      title: 'Provisions',
-      description: 'Manage food, beverages, and supplies',
-      icon: Anchor,
-      href: `/dashboard/marine/vessels/${vessel.id}/operations/provisions`,
-      color: 'cyan',
-      count: null,
-      countLabel: null
-    },
+    
+    // === DOCUMENTS & INFO ===
     {
       title: 'Documents & Manuals',
       description: 'Store and access vessel documentation',
@@ -171,24 +200,6 @@ export default function VesselOperationsPage({ params }: { params: Promise<{ id:
       icon: Heart,
       href: `/dashboard/marine/vessels/${vessel.id}/operations/guests`,
       color: 'rose',
-      count: null,
-      countLabel: null
-    },
-    {
-      title: 'Operational Costs',
-      description: 'Track all vessel operational expenses',
-      icon: DollarSign,
-      href: `/dashboard/marine/vessels/${vessel.id}/operations/costs`,
-      color: 'emerald',
-      count: null,
-      countLabel: null
-    },
-    {
-      title: 'Time Tracking',
-      description: 'Track time spent on repairs and work',
-      icon: Clock,
-      href: `/dashboard/marine/vessels/${vessel.id}/operations/time-tracking`,
-      color: 'amber',
       count: null,
       countLabel: null
     }

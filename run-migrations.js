@@ -42,6 +42,7 @@ const MIGRATION_FILES = [
   'auth-schema.sql',
   'warehouse-schema.sql',
   'vessel-operations-schema.sql', // Operations tables (maintenance, crew, tasks, logs, documents, etc.)
+  'inventory-usage-schema.sql', // Inventory usage tracking and vessel equipment
   'fix-rls-policies.sql',
   'sync-completed-expenses.sql',
   'auto-update-total-spent.sql',

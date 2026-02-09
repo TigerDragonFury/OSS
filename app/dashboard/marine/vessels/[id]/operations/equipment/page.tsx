@@ -102,7 +102,122 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
 
   const totalEquipmentRevenue = equipmentSales?.reduce((sum, sale) => sum + (sale.sale_price || 0), 0) || 0
   const totalScrapRevenue = scrapSales?.reduce((sum, sale) => sum + (sale.total_amount || 0), 0) || 0
-  const totalAssetValue = installedEquipment?.reduce((sum, eq) => sum + (eq.cost || 0), 0) || 0
+  const totalAssetValue = installedEquipment?.reduce((sum, eq) => sum + (eq.installation_cost || 0), 0) || 0
+
+  // Create/Update Equipment Sale Mutation
+  const saveEquipmentSale = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingItem?.id) {
+        const { error } = await supabase
+          .from('vessel_equipment_sales')
+          .update(data)
+          .eq('id', editingItem.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('vessel_equipment_sales')
+          .insert([{ ...data, vessel_id: resolvedParams.id }])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessel_equipment_sales', resolvedParams.id] })
+      setShowEquipmentSaleForm(false)
+      setEditingItem(null)
+    }
+  })
+
+  // Create/Update Scrap Sale Mutation
+  const saveScrapSale = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingItem?.id) {
+        const { error } = await supabase
+          .from('vessel_scrap_sales')
+          .update(data)
+          .eq('id', editingItem.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('vessel_scrap_sales')
+          .insert([{ ...data, vessel_id: resolvedParams.id }])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessel_scrap_sales', resolvedParams.id] })
+      setShowScrapSaleForm(false)
+      setEditingItem(null)
+    }
+  })
+
+  // Create/Update Installed Equipment Mutation
+  const saveInstalledEquipment = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingItem?.id) {
+        const { error } = await supabase
+          .from('vessel_equipment')
+          .update(data)
+          .eq('id', editingItem.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('vessel_equipment')
+          .insert([{ ...data, vessel_id: resolvedParams.id }])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessel_equipment', resolvedParams.id] })
+      setShowInstalledForm(false)
+      setEditingItem(null)
+    }
+  })
+
+  const handleSubmitEquipmentSale = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      equipment_name: formData.get('equipment_name'),
+      description: formData.get('description'),
+      sale_date: formData.get('sale_date'),
+      sale_price: parseFloat(formData.get('sale_price') as string),
+      buyer_name: formData.get('buyer_name'),
+      notes: formData.get('notes')
+    }
+    saveEquipmentSale.mutate(data)
+  }
+
+  const handleSubmitScrapSale = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const tonnage = parseFloat(formData.get('tonnage') as string)
+    const pricePerTon = parseFloat(formData.get('price_per_ton') as string)
+    const data = {
+      sale_date: formData.get('sale_date'),
+      tonnage: tonnage,
+      price_per_ton: pricePerTon,
+      total_amount: tonnage * pricePerTon,
+      buyer_name: formData.get('buyer_name'),
+      notes: formData.get('notes')
+    }
+    saveScrapSale.mutate(data)
+  }
+
+  const handleSubmitInstalledEquipment = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      equipment_name: formData.get('equipment_name'),
+      equipment_type: formData.get('equipment_type'),
+      manufacturer: formData.get('manufacturer'),
+      serial_number: formData.get('serial_number'),
+      installation_date: formData.get('installation_date'),
+      installation_cost: parseFloat(formData.get('installation_cost') as string) || null,
+      status: formData.get('status'),
+      notes: formData.get('notes')
+    }
+    saveInstalledEquipment.mutate(data)
+  }
 
   return (
     <div className="space-y-6">
@@ -220,7 +335,6 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Price</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
@@ -230,7 +344,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                         <td className="px-6 py-4">
                           <div>
                             <p className="font-medium text-gray-900">{sale.equipment_name}</p>
-                            <p className="text-sm text-gray-500">{sale.category || 'N/A'}</p>
+                            <p className="text-sm text-gray-500">{sale.description || 'N/A'}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
@@ -240,15 +354,6 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                         <td className="px-6 py-4">
                           <span className="text-sm font-semibold text-green-600">
                             {sale.sale_price?.toLocaleString()} AED
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            sale.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-                            sale.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {sale.payment_status}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -307,29 +412,27 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Weight (kg)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/kg</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tonnage</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/Ton</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {scrapSales?.map((sale) => (
                       <tr key={sale.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{sale.scrap_type}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {new Date(sale.sale_date).toLocaleDateString()}
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.weight_kg?.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_kg?.toLocaleString()} AED</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{sale.tonnage?.toLocaleString()} tons</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_ton?.toLocaleString()} AED</td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-semibold text-green-600">
                             {sale.total_amount?.toLocaleString()} AED
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {new Date(sale.sale_date).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
@@ -391,7 +494,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manufacturer</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial Number</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installation Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installation Cost</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -411,7 +514,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                           {equipment.installation_date ? new Date(equipment.installation_date).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {equipment.cost?.toLocaleString()} AED
+                          {equipment.installation_cost?.toLocaleString()} AED
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -461,9 +564,303 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      {/* TODO: Add Equipment Sale Form Modal */}
-      {/* TODO: Add Scrap Sale Form Modal */}
-      {/* TODO: Add Installed Equipment Form Modal */}
+      {/* Equipment Sale Form Modal */}
+      {showEquipmentSaleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingItem ? 'Edit Equipment Sale' : 'Add Equipment Sale'}
+              </h2>
+            </div>
+            <form onSubmit={handleSubmitEquipmentSale} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name *</label>
+                <input
+                  type="text"
+                  name="equipment_name"
+                  defaultValue={editingItem?.equipment_name || ''}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  name="description"
+                  defaultValue={editingItem?.description || ''}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sale Date *</label>
+                  <input
+                    type="date"
+                    name="sale_date"
+                    defaultValue={editingItem?.sale_date || new Date().toISOString().split('T')[0]}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price (AED) *</label>
+                  <input
+                    type="number"
+                    name="sale_price"
+                    step="0.01"
+                    defaultValue={editingItem?.sale_price || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name</label>
+                <input
+                  type="text"
+                  name="buyer_name"
+                  defaultValue={editingItem?.buyer_name || ''}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingItem?.notes || ''}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={saveEquipmentSale.isPending}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {saveEquipmentSale.isPending ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEquipmentSaleForm(false)
+                    setEditingItem(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Scrap Sale Form Modal */}
+      {showScrapSaleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingItem ? 'Edit Scrap Sale' : 'Add Scrap Sale'}
+              </h2>
+            </div>
+            <form onSubmit={handleSubmitScrapSale} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sale Date *</label>
+                <input
+                  type="date"
+                  name="sale_date"
+                  defaultValue={editingItem?.sale_date || new Date().toISOString().split('T')[0]}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tonnage *</label>
+                  <input
+                    type="number"
+                    name="tonnage"
+                    step="0.01"
+                    defaultValue={editingItem?.tonnage || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per Ton (AED) *</label>
+                  <input
+                    type="number"
+                    name="price_per_ton"
+                    step="0.01"
+                    defaultValue={editingItem?.price_per_ton || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name</label>
+                <input
+                  type="text"
+                  name="buyer_name"
+                  defaultValue={editingItem?.buyer_name || ''}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingItem?.notes || ''}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={saveScrapSale.isPending}
+                  className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-400"
+                >
+                  {saveScrapSale.isPending ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScrapSaleForm(false)
+                    setEditingItem(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Installed Equipment Form Modal */}
+      {showInstalledForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingItem ? 'Edit Equipment' : 'Add Equipment'}
+              </h2>
+            </div>
+            <form onSubmit={handleSubmitInstalledEquipment} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name *</label>
+                <input
+                  type="text"
+                  name="equipment_name"
+                  defaultValue={editingItem?.equipment_name || ''}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Type</label>
+                  <input
+                    type="text"
+                    name="equipment_type"
+                    defaultValue={editingItem?.equipment_type || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                  <input
+                    type="text"
+                    name="manufacturer"
+                    defaultValue={editingItem?.manufacturer || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
+                  <input
+                    type="text"
+                    name="serial_number"
+                    defaultValue={editingItem?.serial_number || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
+                  <input
+                    type="date"
+                    name="installation_date"
+                    defaultValue={editingItem?.installation_date || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Cost (AED)</label>
+                  <input
+                    type="number"
+                    name="installation_cost"
+                    step="0.01"
+                    defaultValue={editingItem?.installation_cost || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    name="status"
+                    defaultValue={editingItem?.status || 'operational'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="operational">Operational</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="defective">Defective</option>
+                    <option value="decommissioned">Decommissioned</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingItem?.notes || ''}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={saveInstalledEquipment.isPending}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {saveInstalledEquipment.isPending ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInstalledForm(false)
+                    setEditingItem(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

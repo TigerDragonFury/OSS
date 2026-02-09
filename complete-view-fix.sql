@@ -16,12 +16,14 @@ SELECT
     name,
     purchase_price,
     total_rental_income,
+    total_equipment_sales,
+    total_scrap_sales,
     movement_costs,
-    equipment_sales,
-    scrap_sales,
     drydock_costs,
     overhaul_costs,
     other_expenses,
+    total_expenses,
+    total_overhaul_expenses,
     net_profit_loss
 FROM vessel_financial_summary
 WHERE id = '2721c7b2-c715-4f0a-9369-bcf0e4816e2b';
@@ -105,9 +107,11 @@ GROUP BY v.id, v.name, v.purchase_price;
 SELECT 
     id,
     name,
+    total_equipment_sales,
+    total_scrap_sales,
     total_rental_income,
-    equipment_sales,
-    scrap_sales,
+    total_expenses,
+    total_overhaul_expenses,
     net_profit_loss
 FROM vessel_financial_summary
 WHERE id = '2721c7b2-c715-4f0a-9369-bcf0e4816e2b';

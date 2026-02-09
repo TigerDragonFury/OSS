@@ -48,7 +48,8 @@ const MIGRATION_FILES = [
   'auto-update-total-spent.sql',
   'add-payment-method-to-expenses.sql',
   'fix-land-scrap-sales-schema.sql',
-  'update-companies-types.sql'
+  'update-companies-types.sql',
+  'owner-equity-schema.sql' // Owner equity tracking - who paid what
 ];
 
 // Read environment variables or prompt for connection

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { ArrowLeft, Plus, Settings, DollarSign, FileText, Ship, Package, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 type ComponentType = 'engine' | 'generator' | 'radio_equipment' | 'navigation_equipment' | 
   'hull' | 'propeller_shaft' | 'safety_equipment' | 'accommodation' | 'reclassification' | 'other'
@@ -951,8 +952,11 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
     amount: expense?.amount || '',
     company_id: expense?.company_id || '',
     payment_method: expense?.payment_method || 'bank_transfer',
-    status: expense?.status || 'paid'
+    status: expense?.status || 'paid',
+    paid_by_owner_id: expense?.paid_by_owner_id || ''
   })
+
+  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
@@ -970,11 +974,45 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
     }
   })
 
+  // Fetch owners for payment splits
+  const { data: owners = [] } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name')
+      if (error) throw error
+      return data || []
+    }
+  })
+
+  // Fetch existing payment splits when editing
+  const { data: existingSplits = [] } = useQuery({
+    queryKey: ['payment_splits', expense?.id],
+    enabled: !!expense?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_splits')
+        .select('*, owners(name)')
+        .eq('expense_id', expense.id)
+      if (error) throw error
+      return (data || []).map(split => ({
+        owner_id: split.owner_id,
+        owner_name: (split.owners as any)?.name,
+        amount_paid: split.amount_paid
+      }))
+    }
+  })
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
+      let expenseId = expense?.id
+
       if (expense?.id) {
         // Update existing expense - exclude project_id and project_type
-        const { project_id, project_type, ...updateData } = data
+        const { project_id, project_type, paymentSplits, ...updateData } = data
         const { error } = await supabase
           .from('expenses')
           .update({
@@ -985,20 +1023,47 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
         if (error) throw error
       } else {
         // Insert new expense
-        const { error} = await supabase
+        const { paymentSplits, ...expenseData } = data
+        const { data: result, error } = await supabase
           .from('expenses')
           .insert([{
             project_id: projectId,
             project_type: 'vessel',
-            ...data,
-            amount: parseFloat(data.amount)
+            ...expenseData,
+            amount: parseFloat(expenseData.amount)
           }])
+          .select()
         if (error) throw error
+        expenseId = result[0].id
+      }
+
+      // Handle payment splits
+      if (data.paymentSplits && data.paymentSplits.length > 0 && expenseId) {
+        // Delete existing splits
+        await supabase
+          .from('payment_splits')
+          .delete()
+          .eq('expense_id', expenseId)
+
+        // Insert new splits
+        const splitsData = data.paymentSplits.map((split: any) => ({
+          expense_id: expenseId,
+          owner_id: split.owner_id,
+          amount_paid: split.amount_paid,
+          payment_date: data.date
+        }))
+
+        const { error: splitsError } = await supabase
+          .from('payment_splits')
+          .insert(splitsData)
+        if (splitsError) throw splitsError
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['overhaul_expenses', projectId] })
       queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_project', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     }
   })
@@ -1009,7 +1074,7 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-6">{expense ? 'Edit' : 'Record'} Expense</h2>
           
-          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); mutation.mutate({ ...formData, paymentSplits }) }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
@@ -1111,6 +1176,49 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
+            </div>
+
+            {/* Payment Information */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Paid By (Single Owner)
+                </label>
+                <select
+                  value={formData.paid_by_owner_id}
+                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select Owner (if single payer) --</option>
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty if using split payments below
+                </p>
+              </div>
+
+              {formData.amount && parseFloat(formData.amount) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Split Payments (Optional)
+                  </label>
+                  <PaymentSplitsInput
+                    owners={owners}
+                    totalAmount={parseFloat(formData.amount)}
+                    existingSplits={existingSplits}
+                    onChange={setPaymentSplits}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use this if multiple owners are contributing to this expense
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">

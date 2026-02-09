@@ -168,16 +168,15 @@ export default async function ReportsPage() {
                         {vessel.purchase_price?.toLocaleString() || 0} AED
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-green-600">
-                        +{((vessel.equipment_sales || 0) + (vessel.scrap_sales || 0)).toLocaleString()} AED
+                        +{((vessel.total_equipment_sales || 0) + (vessel.total_scrap_sales || 0) + (vessel.total_rental_income || 0)).toLocaleString()} AED
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-red-600">
-                        -{((vessel.purchase_price || 0) + (vessel.movement_costs || 0) + 
-                          (vessel.drydock_costs || 0) + (vessel.overhaul_costs || 0) + 
-                          (vessel.other_expenses || 0)).toLocaleString()} AED
+                        -{((vessel.purchase_price || 0) + (vessel.total_expenses || 0) + 
+                          (vessel.total_overhaul_expenses || 0)).toLocaleString()} AED
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={`font-bold ${vessel.net_profit_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {vessel.net_profit_loss >= 0 ? '+' : ''}{vessel.net_profit_loss?.toLocaleString() || 0} AED
+                        <span className={`font-bold ${(((vessel.total_equipment_sales || 0) + (vessel.total_scrap_sales || 0) + (vessel.total_rental_income || 0)) - ((vessel.purchase_price || 0) + (vessel.total_expenses || 0) + (vessel.total_overhaul_expenses || 0))) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(((vessel.total_equipment_sales || 0) + (vessel.total_scrap_sales || 0) + (vessel.total_rental_income || 0)) - ((vessel.purchase_price || 0) + (vessel.total_expenses || 0) + (vessel.total_overhaul_expenses || 0))) >= 0 ? '+' : ''}{(((vessel.total_equipment_sales || 0) + (vessel.total_scrap_sales || 0) + (vessel.total_rental_income || 0)) - ((vessel.purchase_price || 0) + (vessel.total_expenses || 0) + (vessel.total_overhaul_expenses || 0))).toLocaleString()} AED
                         </span>
                       </td>
                     </tr>
@@ -221,14 +220,14 @@ export default async function ReportsPage() {
                         {land.purchase_price?.toLocaleString() || 0} AED
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-green-600">
-                        +{((land.equipment_sales || 0) + (land.scrap_sales || 0)).toLocaleString()} AED
+                        +{((land.total_equipment_sales || 0) + (land.total_scrap_sales || 0)).toLocaleString()} AED
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-red-600">
-                        -{(land.expenses || 0).toLocaleString()} AED
+                        -{(land.total_expenses || 0).toLocaleString()} AED
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={`font-bold ${land.net_profit_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {land.net_profit_loss >= 0 ? '+' : ''}{land.net_profit_loss?.toLocaleString() || 0} AED
+                        <span className={`font-bold ${land.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {land.net_profit >= 0 ? '+' : ''}{land.net_profit?.toLocaleString() || 0} AED
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">

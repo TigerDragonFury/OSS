@@ -1,5 +1,7 @@
 -- Fix the vessel rental income trigger to match actual table structure
--- The trigger was referencing customer_company_id but the table has customer_id
+-- vessel_rentals.customer_id references customers(id)
+-- income_records.customer_company_id references companies(id)
+-- These are different tables, so we set customer_company_id to NULL
 
 -- Drop and recreate the trigger function with correct column names
 CREATE OR REPLACE FUNCTION create_income_from_vessel_rental()
@@ -13,7 +15,7 @@ BEGIN
       source_id,
       reference_id,
       amount,
-      customer_company_id,  -- income_records uses customer_company_id
+      customer_company_id,  -- Set to NULL since vessel_rentals.customer_id references customers, not companies
       description
     ) VALUES (
       COALESCE(NEW.end_date, CURRENT_DATE),
@@ -22,7 +24,7 @@ BEGIN
       NEW.vessel_id,
       NEW.id,
       NEW.total_amount,
-      NEW.customer_id,  -- vessel_rentals uses customer_id
+      NULL,  -- Can't map customer_id to company_id
       CONCAT('Vessel Rental: ', NEW.start_date, ' to ', NEW.end_date)
     );
   END IF;

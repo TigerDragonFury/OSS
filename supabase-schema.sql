@@ -631,7 +631,7 @@ BEGIN
       NEW.vessel_id,
       NEW.id,
       NEW.total_amount,
-      NEW.customer_id,  -- FIXED: vessel_rentals uses customer_id, not customer_company_id
+      NULL,  -- vessel_rentals.customer_id references customers(id), not companies(id)
       CONCAT('Vessel Rental: ', NEW.start_date, ' to ', NEW.end_date)
     );
   END IF;

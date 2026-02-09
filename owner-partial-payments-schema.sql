@@ -23,23 +23,45 @@ CREATE TABLE IF NOT EXISTS payment_splits (
     salary_payment_id UUID REFERENCES salary_payments(id),
     vessel_movement_id UUID REFERENCES vessel_movements(id),
     land_purchase_id UUID REFERENCES land_purchases(id),
-    overhaul_project_id UUID REFERENCES vessel_overhaul_projects(id),
     
     amount_paid DECIMAL(15, 2) NOT NULL,
     payment_date DATE DEFAULT CURRENT_DATE,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add overhaul_project_id column if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'payment_splits' AND column_name = 'overhaul_project_id'
+    ) THEN
+        ALTER TABLE payment_splits ADD COLUMN overhaul_project_id UUID REFERENCES vessel_overhaul_projects(id);
+    END IF;
+END $$;
+
+-- Drop and recreate the constraint to include overhaul_project_id
+DO $$
+BEGIN
+    -- Drop existing constraint if it exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'check_single_reference' AND table_name = 'payment_splits'
+    ) THEN
+        ALTER TABLE payment_splits DROP CONSTRAINT check_single_reference;
+    END IF;
     
-    -- Ensure only one reference is set
-    CONSTRAINT check_single_reference CHECK (
+    -- Add updated constraint
+    ALTER TABLE payment_splits ADD CONSTRAINT check_single_reference CHECK (
         (vessel_id IS NOT NULL)::int +
         (expense_id IS NOT NULL)::int +
         (salary_payment_id IS NOT NULL)::int +
         (vessel_movement_id IS NOT NULL)::int +
         (land_purchase_id IS NOT NULL)::int +
         (overhaul_project_id IS NOT NULL)::int = 1
-    )
-);
+    );
+END $$;
 
 -- Update owner_equity_summary VIEW to include payment_splits
 DROP VIEW IF EXISTS owner_equity_summary;

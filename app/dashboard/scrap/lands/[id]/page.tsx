@@ -532,14 +532,14 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
     notes: ''
   })
 
-  // Fetch scrap buyers for dropdown
+  // Fetch companies for dropdown (all except parent)
   const { data: scrapBuyers } = useQuery({
-    queryKey: ['companies', 'scrap_buyers'],
+    queryKey: ['companies', 'non_parent'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
         .select('id, name, type')
-        .eq('type', 'scrap_buyer')
+        .neq('type', 'parent')
         .order('name', { ascending: true })
       if (error) throw error
       return data
@@ -632,16 +632,16 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
               )}
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scrap Buyer List</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Company</label>
                 <select
                   value={formData.buyer_company_id}
                   onChange={(e) => setFormData({ ...formData, buyer_company_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Scrap Buyer (Optional)</option>
+                  <option value="">Select a company (Optional)</option>
                   {scrapBuyers?.map((buyer) => (
                     <option key={buyer.id} value={buyer.id}>
-                      {buyer.name}
+                      {buyer.name} ({buyer.type})
                     </option>
                   ))}
                 </select>

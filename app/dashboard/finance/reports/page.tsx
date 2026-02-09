@@ -4,10 +4,19 @@ import { DollarSign, TrendingUp, TrendingDown, Ship, LandPlot } from 'lucide-rea
 async function getReportsData() {
   const supabase = await createClient()
   
-  // Get profit/loss summary
+  // Get parent companies first
+  const { data: parentCompanies } = await supabase
+    .from('companies')
+    .select('id')
+    .eq('type', 'parent')
+  
+  const parentCompanyIds = parentCompanies?.map(c => c.id) || []
+  
+  // Get profit/loss summary (only parent companies)
   const { data: profitLoss } = await supabase
     .from('profit_loss_summary')
     .select('*')
+    .in('company_id', parentCompanyIds)
   
   // Get vessel financial summary
   const { data: vesselFinancials } = await supabase

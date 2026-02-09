@@ -3,10 +3,12 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
+import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function ExpensesPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<any>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -30,6 +32,30 @@ export default function ExpensesPage() {
       return data
     }
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (expenseId: string) => {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+    }
+  })
+
+  const handleDelete = async (expense: any) => {
+    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?`)) {
+      try {
+        await deleteMutation.mutateAsync(expense.id)
+      } catch (error) {
+        console.error('Error deleting expense:', error)
+        alert('Failed to delete expense')
+      }
+    }
+  }
 
   const totalExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
   const paidExpenses = expenses?.filter(e => e.status === 'paid').reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
@@ -90,6 +116,9 @@ export default function ExpensesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -118,6 +147,24 @@ export default function ExpensesPage() {
                       {expense.status}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setEditingExpense(expense)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Edit expense"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(expense)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete expense"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -132,48 +179,122 @@ export default function ExpensesPage() {
       )}
 
       {isAdding && <ExpenseForm onClose={() => setIsAdding(false)} companies={companies || []} />}
+      {editingExpense && <ExpenseForm expense={editingExpense} onClose={() => setEditingExpense(null)} companies={companies || []} />}
     </div>
   )
 }
 
-function ExpenseForm({ onClose, companies }: { onClose: () => void, companies: any[] }) {
+function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: () => void, companies: any[] }) {
   const [formData, setFormData] = useState({
-    company_id: '',
-    expense_type: '',
-    category: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    project_type: 'general',
-    description: '',
-    status: 'pending'
+    company_id: expense?.company_id || '',
+    expense_type: expense?.expense_type || '',
+    category: expense?.category || '',
+    amount: expense?.amount || '',
+    date: expense?.date || new Date().toISOString().split('T')[0],
+    project_type: expense?.project_type || 'general',
+    description: expense?.description || '',
+    status: expense?.status || 'pending',
+    paid_by_owner_id: expense?.paid_by_owner_id || ''
   })
+
+  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
 
+  const { data: owners = [] } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name')
+      if (error) throw error
+      return data || []
+    }
+  })
+
+  const { data: existingSplits = [] } = useQuery({
+    queryKey: ['payment_splits', expense?.id],
+    enabled: !!expense?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_splits')
+        .select('*, owners(name)')
+        .eq('expense_id', expense.id)
+      if (error) throw error
+      return (data || []).map(split => ({
+        owner_id: split.owner_id,
+        owner_name: (split.owners as any)?.name,
+        amount_paid: split.amount_paid
+      }))
+    }
+  })
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
-        .from('expenses')
-        .insert([data])
-      if (error) throw error
+      let expenseId = expense?.id
+
+      // Save expense (update or insert)
+      if (expense) {
+        const { error } = await supabase
+          .from('expenses')
+          .update(data.expenseData)
+          .eq('id', expense.id)
+        if (error) throw error
+      } else {
+        const { data: result, error } = await supabase
+          .from('expenses')
+          .insert([data.expenseData])
+          .select()
+        if (error) throw error
+        expenseId = result[0].id
+      }
+
+      // Handle payment splits
+      if (data.paymentSplits && data.paymentSplits.length > 0 && expenseId) {
+        // Delete existing splits
+        await supabase
+          .from('payment_splits')
+          .delete()
+          .eq('expense_id', expenseId)
+
+        // Insert new splits
+        const splitsData = data.paymentSplits.map((split: any) => ({
+          expense_id: expenseId,
+          owner_id: split.owner_id,
+          amount_paid: split.amount_paid,
+          payment_date: data.expenseData.date
+        }))
+
+        const { error: splitsError } = await supabase
+          .from('payment_splits')
+          .insert(splitsData)
+        if (splitsError) throw splitsError
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     }
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate(formData)
+    mutation.mutate({
+      expenseData: formData,
+      paymentSplits
+    })
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Add Expense</h2>
+          <h2 className="text-2xl font-bold mb-6">{expense ? 'Edit Expense' : 'Add Expense'}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -275,6 +396,49 @@ function ExpenseForm({ onClose, companies }: { onClose: () => void, companies: a
               />
             </div>
 
+            {/* Payment Information */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Paid By (Single Owner)
+                </label>
+                <select
+                  value={formData.paid_by_owner_id}
+                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">-- Select Owner (if single payer) --</option>
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty if using split payments below
+                </p>
+              </div>
+
+              {formData.amount && parseFloat(formData.amount) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Split Payments (Optional)
+                  </label>
+                  <PaymentSplitsInput
+                    owners={owners}
+                    totalAmount={parseFloat(formData.amount)}
+                    existingSplits={existingSplits}
+                    onChange={setPaymentSplits}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use this if multiple owners are contributing to this expense
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
@@ -288,7 +452,7 @@ function ExpenseForm({ onClose, companies }: { onClose: () => void, companies: a
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {mutation.isPending ? 'Saving...' : 'Create'}
+                {mutation.isPending ? 'Saving...' : expense ? 'Update' : 'Create'}
               </button>
             </div>
           </form>

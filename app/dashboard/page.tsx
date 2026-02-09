@@ -5,150 +5,77 @@ import Link from 'next/link'
 async function getDashboardData() {
   const supabase = await createClient()
   
-  // ============================================
-  // INCOME CALCULATIONS (All Revenue Sources)
-  // ============================================
+  // Run all queries in parallel for much faster loading
+  const [
+    // Income data
+    equipmentSalesData,
+    vesselScrapData,
+    landScrapData,
+    warehouseSalesData,
+    rentalIncomeData,
+    // Expense data
+    vesselPurchasesData,
+    salariesData,
+    expensesData,
+    overhaulExpensesData,
+    // Counts
+    vesselsCountRes,
+    activeVesselsCountRes,
+    landsCountRes,
+    employeesCountRes,
+    activeRentalsRes,
+    activeOverhaulsRes,
+    inventoryCountRes,
+    lowStockItemsRes,
+    recentVesselsRes,
+    recentLandsRes
+  ] = await Promise.all([
+    // Income
+    supabase.from('vessel_equipment_sales').select('sale_price'),
+    supabase.from('vessel_scrap_sales').select('total_amount'),
+    supabase.from('land_scrap_sales').select('total_amount'),
+    supabase.from('warehouse_sales').select('total_amount'),
+    supabase.from('vessel_rentals').select('total_amount').eq('payment_status', 'paid').in('status', ['active', 'completed']),
+    
+    // Expenses
+    supabase.from('vessels').select('purchase_price'),
+    supabase.from('salary_payments').select('amount'),
+    supabase.from('expenses').select('amount'),
+    supabase.from('expenses').select('amount').eq('project_type', 'vessel'),
+    
+    // Counts
+    supabase.from('vessels').select('*', { count: 'exact', head: true }),
+    supabase.from('vessels').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('land_purchases').select('*', { count: 'exact', head: true }),
+    supabase.from('employees').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    
+    // Lists
+    supabase.from('vessel_rentals').select('*, vessels(name)', { count: 'exact' }).eq('status', 'active').order('start_date', { ascending: false }).limit(5),
+    supabase.from('vessel_overhaul_projects').select('*, vessels(name)', { count: 'exact' }).eq('status', 'in_progress').order('start_date', { ascending: false }).limit(5),
+    supabase.from('marine_inventory').select('*', { count: 'exact', head: true }).gt('quantity_in_stock', 0),
+    supabase.from('marine_inventory').select('equipment_name, quantity_in_stock, minimum_stock_level').not('minimum_stock_level', 'is', null).order('quantity_in_stock', { ascending: true }).limit(10),
+    supabase.from('vessels').select('*').order('created_at', { ascending: false }).limit(5),
+    supabase.from('land_purchases').select('*').order('created_at', { ascending: false }).limit(5)
+  ])
   
-  // Vessel Equipment Sales Income
-  const { data: equipmentSalesData } = await supabase
-    .from('vessel_equipment_sales')
-    .select('sale_price')
-  const totalEquipmentSales = equipmentSalesData?.reduce((sum, s) => sum + (s.sale_price || 0), 0) || 0
+  // Calculate totals
+  const totalEquipmentSales = equipmentSalesData.data?.reduce((sum, s) => sum + (s.sale_price || 0), 0) || 0
+  const totalVesselScrap = vesselScrapData.data?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  const totalLandScrap = landScrapData.data?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  const totalWarehouseSales = warehouseSalesData.data?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
+  const totalRentalIncome = rentalIncomeData.data?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
+  const totalVesselPurchases = vesselPurchasesData.data?.reduce((sum, v) => sum + (v.purchase_price || 0), 0) || 0
+  const totalSalaries = salariesData.data?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0
+  const totalExpenses = expensesData.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+  const totalOverhaulExpenses = overhaulExpensesData.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
   
-  // Vessel Scrap Sales Income
-  const { data: vesselScrapData } = await supabase
-    .from('vessel_scrap_sales')
-    .select('total_amount')
-  const totalVesselScrap = vesselScrapData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
-  
-  // Land Scrap Sales Income
-  const { data: landScrapData } = await supabase
-    .from('land_scrap_sales')
-    .select('total_amount')
-  const totalLandScrap = landScrapData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
-  
-  // Warehouse Sales Income
-  const { data: warehouseSalesData } = await supabase
-    .from('warehouse_sales')
-    .select('total_amount')
-  const totalWarehouseSales = warehouseSalesData?.reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0
-  
-  // Vessel Rental Income (only active/completed rentals with paid status)
-  const { data: rentalIncomeData } = await supabase
-    .from('vessel_rentals')
-    .select('total_amount, status')
-    .eq('payment_status', 'paid')
-    .in('status', ['active', 'completed'])
-  const totalRentalIncome = rentalIncomeData?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
-  
-  // Total Income from all sources
   const totalIncome = totalEquipmentSales + totalVesselScrap + totalLandScrap + totalWarehouseSales + totalRentalIncome
-  
-  // ============================================
-  // EXPENSE CALCULATIONS (All Cost Sources)
-  // ============================================
-  
-  // Vessel Purchase Costs
-  const { data: vesselPurchasesData } = await supabase
-    .from('vessels')
-    .select('purchase_price')
-  const totalVesselPurchases = vesselPurchasesData?.reduce((sum, v) => sum + (v.purchase_price || 0), 0) || 0
-  
-  // Employee Salaries
-  const { data: salariesData } = await supabase
-    .from('salary_payments')
-    .select('amount')
-  const totalSalaries = salariesData?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0
-  
-  // General Expenses (includes overhauls, maintenance, etc.)
-  const { data: expenseData } = await supabase
-    .from('expenses')
-    .select('amount')
-  const totalExpenses = expenseData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-  
-  // Total Expenses from all sources
   const totalExpensesAll = totalVesselPurchases + totalSalaries + totalExpenses
   
-  // Get overhaul expenses breakdown
-  const { data: overhaulExpenses } = await supabase
-    .from('expenses')
-    .select('amount')
-    .eq('project_type', 'vessel')
-  const totalOverhaulExpenses = overhaulExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-  
-  // ============================================
-  // COUNTS AND LISTS
-  // ============================================
-  
-  // Get vessels count and stats
-  const { count: vesselsCount } = await supabase
-    .from('vessels')
-    .select('*', { count: 'exact', head: true })
-  
-  const { count: activeVesselsCount } = await supabase
-    .from('vessels')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'active')
-  
-  // Get lands count
-  const { count: landsCount } = await supabase
-    .from('land_purchases')
-    .select('*', { count: 'exact', head: true })
-  
-  // Get employees count
-  const { count: employeesCount } = await supabase
-    .from('employees')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'active')
-  
-  // Get active rentals
-  const { data: activeRentals, count: activeRentalsCount } = await supabase
-    .from('vessel_rentals')
-    .select('*, vessels(name)', { count: 'exact' })
-    .eq('status', 'active')
-    .order('start_date', { ascending: false })
-    .limit(5)
-  
-  // Get active overhaul projects
-  const { data: activeOverhauls, count: activeOverhaulsCount } = await supabase
-    .from('vessel_overhaul_projects')
-    .select('*, vessels(name)', { count: 'exact' })
-    .eq('status', 'in_progress')
-    .order('start_date', { ascending: false })
-    .limit(5)
-  
-  // Get marine inventory count
-  const { count: inventoryCount } = await supabase
-    .from('marine_inventory')
-    .select('*', { count: 'exact', head: true })
-    .gt('quantity_in_stock', 0)
-  
-  // Get low stock items
-  const { data: lowStockItems } = await supabase
-    .from('marine_inventory')
-    .select('equipment_name, quantity_in_stock, minimum_stock_level')
-    .not('minimum_stock_level', 'is', null)
-    .order('quantity_in_stock', { ascending: true })
-    .limit(10)
-  
-  // Filter low stock items where quantity < minimum
-  const filteredLowStock = lowStockItems?.filter(item => 
+  // Filter low stock items
+  const filteredLowStock = lowStockItemsRes.data?.filter(item => 
     item.quantity_in_stock < (item.minimum_stock_level || 10)
   ).slice(0, 5) || []
-  
-  // Get recent vessels
-  const { data: recentVessels } = await supabase
-    .from('vessels')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5)
-  
-  // Get recent lands
-  const { data: recentLands } = await supabase
-    .from('land_purchases')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5)
   
   return {
     totalIncome,
@@ -161,18 +88,18 @@ async function getDashboardData() {
     totalVesselPurchases,
     totalSalaries,
     totalOverhaulExpenses,
-    vesselsCount: vesselsCount || 0,
-    activeVesselsCount: activeVesselsCount || 0,
-    landsCount: landsCount || 0,
-    employeesCount: employeesCount || 0,
-    activeRentals: activeRentals || [],
-    activeRentalsCount: activeRentalsCount || 0,
-    activeOverhauls: activeOverhauls || [],
-    activeOverhaulsCount: activeOverhaulsCount || 0,
-    inventoryCount: inventoryCount || 0,
+    vesselsCount: vesselsCountRes.count || 0,
+    activeVesselsCount: activeVesselsCountRes.count || 0,
+    landsCount: landsCountRes.count || 0,
+    employeesCount: employeesCountRes.count || 0,
+    activeRentals: activeRentalsRes.data || [],
+    activeRentalsCount: activeRentalsRes.count || 0,
+    activeOverhauls: activeOverhaulsRes.data || [],
+    activeOverhaulsCount: activeOverhaulsRes.count || 0,
+    inventoryCount: inventoryCountRes.count || 0,
     lowStockItems: filteredLowStock,
-    recentVessels: recentVessels || [],
-    recentLands: recentLands || []
+    recentVessels: recentVesselsRes.data || [],
+    recentLands: recentLandsRes.data || []
   }
 }
 

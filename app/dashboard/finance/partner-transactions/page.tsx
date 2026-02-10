@@ -216,8 +216,13 @@ export default function PartnerTransactionsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">
                           -{parseFloat(dist.amount).toLocaleString()} AED
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                          {dist.source_type?.replace('_', ' ')}
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div>
+                            <span className="capitalize font-medium">{dist.source_type?.replace('_', ' ')}</span>
+                            {dist.source_id && (
+                              <div className="text-xs text-gray-500 mt-0.5">ID: {dist.source_id.substring(0, 8)}...</div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">{dist.description || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap">

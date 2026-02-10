@@ -88,6 +88,56 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
     }
   })
 
+  // Fetch distributions to show how much has been taken from each sale
+  const { data: equipmentDistributions } = useQuery({
+    queryKey: ['equipment_distributions', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owner_distributions')
+        .select('source_id, amount')
+        .eq('source_type', 'equipment_sale')
+      if (error) throw error
+      
+      const grouped = data.reduce((acc: any, curr: any) => {
+        if (curr.source_id) {
+          acc[curr.source_id] = (acc[curr.source_id] || 0) + parseFloat(curr.amount)
+        }
+        return acc
+      }, {})
+      
+      return grouped
+    }
+  })
+
+  const { data: scrapDistributions } = useQuery({
+    queryKey: ['scrap_distributions', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owner_distributions')
+        .select('source_id, amount')
+        .eq('source_type', 'scrap_sale')
+      if (error) throw error
+      
+      const grouped = data.reduce((acc: any, curr: any) => {
+        if (curr.source_id) {
+          acc[curr.source_id] = (acc[curr.source_id] || 0) + parseFloat(curr.amount)
+        }
+        return acc
+      }, {})
+      
+      return grouped
+    }
+  })
+
+  // Helper function to get distribution info
+  const getDistributionInfo = (saleId: string, saleAmount: number, type: 'equipment' | 'scrap') => {
+    const distributions = type === 'equipment' ? equipmentDistributions : scrapDistributions
+    const taken = distributions?.[saleId] || 0
+    const remaining = saleAmount - taken
+    const isFullyDistributed = remaining <= 0
+    return { taken, remaining, isFullyDistributed }
+  }
+
   // Delete Equipment Sale Mutation
   const deleteEquipmentSale = useMutation({
     mutationFn: async (id: string) => {
@@ -370,7 +420,9 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {equipmentSales?.map((sale) => (
+                    {equipmentSales?.map((sale) => {
+                      const distInfo = getDistributionInfo(sale.id, sale.sale_price || 0, 'equipment')
+                      return (
                       <React.Fragment key={sale.id}>
                         <tr className="hover:bg-gray-50">
                           <td className="px-6 py-4">
@@ -419,14 +471,31 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                               >
                                 <X className="h-3 w-3" /> Cancel
                               </button>
+                            ) : distInfo.isFullyDistributed ? (
+                              <div className="text-xs text-gray-400">
+                                <div className="font-medium">Fully Distributed</div>
+                                <div>{distInfo.taken.toLocaleString()} AED taken</div>
+                              </div>
                             ) : (
-                              <button
-                                onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'equipment' })}
-                                className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
-                                title="Record that a partner took this money"
-                              >
-                                <UserCircle className="h-3 w-3" /> Partner Took This
-                              </button>
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'equipment' })}
+                                  className={`text-xs px-3 py-1 rounded flex items-center gap-1 ${
+                                    distInfo.taken > 0 
+                                      ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' 
+                                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                  }`}
+                                  title="Record that a partner took this money"
+                                >
+                                  <UserCircle className="h-3 w-3" /> 
+                                  {distInfo.taken > 0 ? `${distInfo.taken.toLocaleString()} taken` : 'Partner Took This'}
+                                </button>
+                                {distInfo.taken > 0 && (
+                                  <div className="text-xs text-gray-500">
+                                    {distInfo.remaining.toLocaleString()} AED remaining
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -434,7 +503,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                           <tr>
                             <td colSpan={6} className="px-6 py-4 bg-purple-50">
                               <DistributionForm
-                                saleAmount={sale.sale_price}
+                                saleAmount={distInfo.remaining > 0 ? distInfo.remaining : sale.sale_price}
                                 sourceType="equipment_sale"
                                 sourceId={sale.id}
                                 saleDate={sale.sale_date}
@@ -445,7 +514,8 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                           </tr>
                         )}
                       </React.Fragment>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
                 {(!equipmentSales || equipmentSales.length === 0) && (
@@ -487,7 +557,9 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {scrapSales?.map((sale) => (
+                    {scrapSales?.map((sale) => {
+                      const distInfo = getDistributionInfo(sale.id, sale.total_amount || 0, 'scrap')
+                      return (
                       <React.Fragment key={sale.id}>
                         <tr className="hover:bg-gray-50">
                           <td className="px-6 py-4 text-sm text-gray-900">
@@ -532,14 +604,31 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                             >
                               <X className="h-3 w-3" /> Cancel
                             </button>
+                          ) : distInfo.isFullyDistributed ? (
+                            <div className="text-xs text-gray-400">
+                              <div className="font-medium">Fully Distributed</div>
+                              <div>{distInfo.taken.toLocaleString()} AED taken</div>
+                            </div>
                           ) : (
-                            <button
-                              onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'scrap' })}
-                              className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
-                              title="Record that a partner took this money"
-                            >
-                              <UserCircle className="h-3 w-3" /> Partner Took This
-                            </button>
+                            <div className="space-y-1">
+                              <button
+                                onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'scrap' })}
+                                className={`text-xs px-3 py-1 rounded flex items-center gap-1 ${
+                                  distInfo.taken > 0 
+                                    ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' 
+                                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                }`}
+                                title="Record that a partner took this money"
+                              >
+                                <UserCircle className="h-3 w-3" /> 
+                                {distInfo.taken > 0 ? `${distInfo.taken.toLocaleString()} taken` : 'Partner Took This'}
+                              </button>
+                              {distInfo.taken > 0 && (
+                                <div className="text-xs text-gray-500">
+                                  {distInfo.remaining.toLocaleString()} AED remaining
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -547,7 +636,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                         <tr>
                           <td colSpan={7} className="px-6 py-4 bg-purple-50">
                             <DistributionForm
-                              saleAmount={sale.total_amount}
+                              saleAmount={distInfo.remaining > 0 ? distInfo.remaining : sale.total_amount}
                               sourceType="scrap_sale"
                               sourceId={sale.id}
                               saleDate={sale.sale_date}
@@ -558,7 +647,8 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                         </tr>
                       )}
                     </React.Fragment>
-                    ))}
+                    )
+                    })}
                   </tbody>
                 </table>
                 {(!scrapSales || scrapSales.length === 0) && (
@@ -1018,6 +1108,8 @@ function DistributionForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner_distributions'] })
       queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment_distributions'] })
+      queryClient.invalidateQueries({ queryKey: ['scrap_distributions'] })
       onClose()
     }
   })

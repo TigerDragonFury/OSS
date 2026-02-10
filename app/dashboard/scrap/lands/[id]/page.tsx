@@ -1,9 +1,10 @@
 'use client'
 
+import React from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { ArrowLeft, Plus, Package, TrendingUp, DollarSign } from 'lucide-react'
+import { ArrowLeft, Plus, Package, TrendingUp, DollarSign, UserCircle, X } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LandDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +13,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
   const [showScrapForm, setShowScrapForm] = useState(false)
   const [showEquipmentForm, setShowEquipmentForm] = useState(false)
   const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [recordingDistributionFor, setRecordingDistributionFor] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -63,6 +65,20 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
         .eq('project_id', resolvedParams.id)
         .eq('project_type', 'land')
         .order('date', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  // Fetch owners for distribution form
+  const { data: owners } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('*')
+        .eq('status', 'active')
+        .order('name')
       if (error) throw error
       return data
     }
@@ -392,6 +408,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity (tons)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/ton</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -405,23 +422,57 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                       </tr>
                     ) : (
                       scrapSales?.map((sale) => (
-                        <tr key={sale.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {sale.material_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.quantity_tons?.toLocaleString() || 0}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.price_per_ton?.toFixed(2) || 0} AED
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                            {sale.total_amount?.toLocaleString() || 0} AED
-                          </td>
-                        </tr>
+                        <React.Fragment key={sale.id}>
+                          <tr className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {sale.material_type}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {sale.quantity_tons?.toLocaleString() || 0}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {sale.price_per_ton?.toFixed(2) || 0} AED
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                              {sale.total_amount?.toLocaleString() || 0} AED
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {recordingDistributionFor === sale.id ? (
+                                <button
+                                  onClick={() => setRecordingDistributionFor(null)}
+                                  className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                                >
+                                  <X className="h-3 w-3" /> Cancel
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setRecordingDistributionFor(sale.id)}
+                                  className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                                  title="Record that a partner took this money"
+                                >
+                                  <UserCircle className="h-3 w-3" /> Partner Took This
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {recordingDistributionFor === sale.id && (
+                            <tr>
+                              <td colSpan={6} className="px-6 py-4 bg-purple-50">
+                                <DistributionForm
+                                  saleAmount={sale.total_amount}
+                                  sourceType="scrap_sale"
+                                  sourceId={sale.id}
+                                  saleDate={sale.sale_date}
+                                  owners={owners || []}
+                                  onClose={() => setRecordingDistributionFor(null)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </tbody>
@@ -963,5 +1014,133 @@ function ExpenseForm({ landId, onClose }: { landId: string, onClose: () => void 
         </div>
       </div>
     </div>
+  )
+}
+
+// Distribution Form Component - Record when partner took money from sale
+function DistributionForm({ 
+  saleAmount, 
+  sourceType, 
+  sourceId, 
+  saleDate,
+  owners, 
+  onClose 
+}: { 
+  saleAmount: number
+  sourceType: string
+  sourceId: string
+  saleDate: string
+  owners: any[]
+  onClose: () => void
+}) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState({
+    owner_id: '',
+    amount: saleAmount.toString(),
+    distribution_date: saleDate || new Date().toISOString().split('T')[0],
+    description: `Took money from ${sourceType.replace('_', ' ')}`
+  })
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('owner_distributions')
+        .insert([{
+          ...data,
+          amount: parseFloat(data.amount),
+          source_type: sourceType,
+          source_id: sourceId,
+          status: 'taken'
+        }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['owner_distributions'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
+      onClose()
+    }
+  })
+
+  return (
+    <form 
+      onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} 
+      className="space-y-3"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <UserCircle className="h-5 w-5 text-purple-600" />
+        <h4 className="font-semibold text-gray-900">Record Partner Distribution</h4>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Partner *</label>
+          <select
+            required
+            value={formData.owner_id}
+            onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="">Select Partner</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>
+                {owner.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Amount (AED) *</label>
+          <input
+            type="number"
+            required
+            step="0.01"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Date *</label>
+          <input
+            type="date"
+            required
+            value={formData.distribution_date}
+            onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+        <input
+          type="text"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Optional notes about this distribution"
+          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          {mutation.isPending ? 'Recording...' : 'Record Distribution'}
+        </button>
+      </div>
+    </form>
   )
 }

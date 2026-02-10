@@ -1,9 +1,10 @@
 'use client'
 
+import React from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { Plus, Edit2, Trash2, Package, Recycle, Settings } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, Recycle, Settings, UserCircle, X } from 'lucide-react'
 
 export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
@@ -12,6 +13,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
   const [showScrapSaleForm, setShowScrapSaleForm] = useState(false)
   const [showInstalledForm, setShowInstalledForm] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
+  const [recordingDistributionFor, setRecordingDistributionFor] = useState<{ id: string, type: 'equipment' | 'scrap' } | null>(null)
   
   const queryClient = useQueryClient()
   const supabase = createClient()
@@ -66,6 +68,20 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
         .from('companies')
         .select('id, name, type')
         .neq('type', 'parent')
+        .order('name')
+      if (error) throw error
+      return data
+    }
+  })
+
+  // Fetch owners for distribution form
+  const { data: owners } = useQuery({
+    queryKey: ['owners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('*')
+        .eq('status', 'active')
         .order('name')
       if (error) throw error
       return data
@@ -350,50 +366,85 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Price</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {equipmentSales?.map((sale) => (
-                      <tr key={sale.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{sale.equipment_name}</p>
-                            <p className="text-sm text-gray-500">{sale.description || 'N/A'}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {new Date(sale.sale_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-green-600">
-                            {sale.sale_price?.toLocaleString()} AED
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingItem(sale)
-                                setShowEquipmentSaleForm(true)
-                              }}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm('Delete this equipment sale?')) {
-                                  deleteEquipmentSale.mutate(sale.id)
-                                }
-                              }}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                      <React.Fragment key={sale.id}>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{sale.equipment_name}</p>
+                              <p className="text-sm text-gray-500">{sale.description || 'N/A'}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {new Date(sale.sale_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-semibold text-green-600">
+                              {sale.sale_price?.toLocaleString()} AED
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingItem(sale)
+                                  setShowEquipmentSaleForm(true)
+                                }}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this equipment sale?')) {
+                                    deleteEquipmentSale.mutate(sale.id)
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {recordingDistributionFor?.id === sale.id && recordingDistributionFor?.type === 'equipment' ? (
+                              <button
+                                onClick={() => setRecordingDistributionFor(null)}
+                                className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                              >
+                                <X className="h-3 w-3" /> Cancel
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'equipment' })}
+                                className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                                title="Record that a partner took this money"
+                              >
+                                <UserCircle className="h-3 w-3" /> Partner Took This
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                        {recordingDistributionFor?.id === sale.id && recordingDistributionFor?.type === 'equipment' && (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-4 bg-purple-50">
+                              <DistributionForm
+                                saleAmount={sale.sale_price}
+                                sourceType="equipment_sale"
+                                sourceId={sale.id}
+                                saleDate={sale.sale_date}
+                                owners={owners || []}
+                                onClose={() => setRecordingDistributionFor(null)}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -432,38 +483,40 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/Ton</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {scrapSales?.map((sale) => (
-                      <tr key={sale.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {new Date(sale.sale_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.tonnage?.toLocaleString()} tons</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_ton?.toLocaleString()} AED</td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-green-600">
-                            {sale.total_amount?.toLocaleString()} AED
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingItem(sale)
-                                setShowScrapSaleForm(true)
-                              }}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm('Delete this scrap sale?')) {
-                                  deleteScrapSale.mutate(sale.id)
-                                }
+                      <React.Fragment key={sale.id}>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {new Date(sale.sale_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{sale.tonnage?.toLocaleString()} tons</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_ton?.toLocaleString()} AED</td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-semibold text-green-600">
+                              {sale.total_amount?.toLocaleString()} AED
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingItem(sale)
+                                  setShowScrapSaleForm(true)
+                                }}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this scrap sale?')) {
+                                    deleteScrapSale.mutate(sale.id)
+                                  }
                               }}
                               className="text-red-600 hover:text-red-800"
                             >
@@ -471,7 +524,40 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                             </button>
                           </div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {recordingDistributionFor?.id === sale.id && recordingDistributionFor?.type === 'scrap' ? (
+                            <button
+                              onClick={() => setRecordingDistributionFor(null)}
+                              className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                            >
+                              <X className="h-3 w-3" /> Cancel
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setRecordingDistributionFor({ id: sale.id, type: 'scrap' })}
+                              className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                              title="Record that a partner took this money"
+                            >
+                              <UserCircle className="h-3 w-3" /> Partner Took This
+                            </button>
+                          )}
+                        </td>
                       </tr>
+                      {recordingDistributionFor?.id === sale.id && recordingDistributionFor?.type === 'scrap' && (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-4 bg-purple-50">
+                            <DistributionForm
+                              saleAmount={sale.total_amount}
+                              sourceType="scrap_sale"
+                              sourceId={sale.id}
+                              saleDate={sale.sale_date}
+                              owners={owners || []}
+                              onClose={() => setRecordingDistributionFor(null)}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -888,5 +974,133 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
         </div>
       )}
     </div>
+  )
+}
+
+// Distribution Form Component - Record when partner took money from sale
+function DistributionForm({ 
+  saleAmount, 
+  sourceType, 
+  sourceId, 
+  saleDate,
+  owners, 
+  onClose 
+}: { 
+  saleAmount: number
+  sourceType: string
+  sourceId: string
+  saleDate: string
+  owners: any[]
+  onClose: () => void
+}) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState({
+    owner_id: '',
+    amount: saleAmount.toString(),
+    distribution_date: saleDate || new Date().toISOString().split('T')[0],
+    description: `Took money from ${sourceType.replace('_', ' ')}`
+  })
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('owner_distributions')
+        .insert([{
+          ...data,
+          amount: parseFloat(data.amount),
+          source_type: sourceType,
+          source_id: sourceId,
+          status: 'taken'
+        }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['owner_distributions'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
+      onClose()
+    }
+  })
+
+  return (
+    <form 
+      onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} 
+      className="space-y-3"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <UserCircle className="h-5 w-5 text-purple-600" />
+        <h4 className="font-semibold text-gray-900">Record Partner Distribution</h4>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Partner *</label>
+          <select
+            required
+            value={formData.owner_id}
+            onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="">Select Partner</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>
+                {owner.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Amount (AED) *</label>
+          <input
+            type="number"
+            required
+            step="0.01"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Date *</label>
+          <input
+            type="date"
+            required
+            value={formData.distribution_date}
+            onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+        <input
+          type="text"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Optional notes about this distribution"
+          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          {mutation.isPending ? 'Recording...' : 'Record Distribution'}
+        </button>
+      </div>
+    </form>
   )
 }

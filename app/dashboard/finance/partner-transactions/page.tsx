@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Plus, ArrowRightLeft, TrendingDown, TrendingUp, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, ArrowRightLeft, TrendingDown, TrendingUp, Trash2, ExternalLink } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type TransactionTab = 'distributions' | 'transfers' | 'contributions'
 
@@ -12,8 +13,10 @@ export default function PartnerTransactionsPage() {
   const [showDistributionForm, setShowDistributionForm] = useState(false)
   const [showTransferForm, setShowTransferForm] = useState(false)
   const [showContributionForm, setShowContributionForm] = useState(false)
+  const [sourceLinks, setSourceLinks] = useState<Record<string, string>>({})
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const router = useRouter()
 
   const { data: distributions, isLoading: loadingDistributions } = useQuery({
     queryKey: ['owner_distributions'],
@@ -26,6 +29,61 @@ export default function PartnerTransactionsPage() {
       return data
     }
   })
+
+  // Build links for all source IDs
+  useEffect(() => {
+    if (!distributions) return
+    
+    const buildLinks = async () => {
+      const links: Record<string, string> = {}
+      
+      for (const dist of distributions) {
+        if (!dist.source_id || !dist.source_type) continue
+        
+        try {
+          if (dist.source_type === 'scrap_sale') {
+            // Check if it's a land scrap sale
+            const { data: landScrap } = await supabase
+              .from('land_scrap_sales')
+              .select('land_id')
+              .eq('id', dist.source_id)
+              .single()
+            
+            if (landScrap) {
+              links[dist.source_id] = `/dashboard/scrap/lands/${landScrap.land_id}`
+            } else {
+              // Check if it's a vessel scrap sale
+              const { data: vesselScrap } = await supabase
+                .from('vessel_scrap_sales')
+                .select('vessel_id')
+                .eq('id', dist.source_id)
+                .single()
+              
+              if (vesselScrap) {
+                links[dist.source_id] = `/dashboard/marine/vessels/${vesselScrap.vessel_id}/operations/equipment`
+              }
+            }
+          } else if (dist.source_type === 'equipment_sale') {
+            const { data: equipmentSale } = await supabase
+              .from('vessel_equipment_sales')
+              .select('vessel_id')
+              .eq('id', dist.source_id)
+              .single()
+            
+            if (equipmentSale) {
+              links[dist.source_id] = `/dashboard/marine/vessels/${equipmentSale.vessel_id}/operations/equipment`
+            }
+          }
+        } catch (err) {
+          console.error('Error building link for', dist.source_id, err)
+        }
+      }
+      
+      setSourceLinks(links)
+    }
+    
+    buildLinks()
+  }, [distributions, supabase])
 
   const { data: transfers, isLoading: loadingTransfers } = useQuery({
     queryKey: ['partner_transfers'],
@@ -220,7 +278,21 @@ export default function PartnerTransactionsPage() {
                           <div>
                             <span className="capitalize font-medium">{dist.source_type?.replace('_', ' ')}</span>
                             {dist.source_id && (
-                              <div className="text-xs text-gray-500 mt-0.5">ID: {dist.source_id.substring(0, 8)}...</div>
+                              <div className="mt-0.5">
+                                {sourceLinks[dist.source_id] ? (
+                                  <button
+                                    onClick={() => router.push(sourceLinks[dist.source_id])}
+                                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                  >
+                                    ID: {dist.source_id.substring(0, 8)}...
+                                    <ExternalLink className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <div className="text-xs text-gray-500">
+                                    ID: {dist.source_id.substring(0, 8)}...
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>

@@ -1499,6 +1499,17 @@ function DistributionForm({
     distribution_date: saleDate || new Date().toISOString().split('T')[0],
     description: `Took money from ${sourceType.replace('_', ' ')}`
   })
+  const [amountError, setAmountError] = useState('')
+
+  const handleAmountChange = (value: string) => {
+    const numValue = parseFloat(value)
+    if (numValue > saleAmount) {
+      setAmountError(`Amount cannot exceed ${saleAmount.toLocaleString()} AED`)
+    } else {
+      setAmountError('')
+    }
+    setFormData({ ...formData, amount: value })
+  }
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1551,15 +1562,25 @@ function DistributionForm({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Amount (AED) *</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Amount (AED) * <span className="text-gray-500">(Max: {saleAmount.toLocaleString()})</span>
+          </label>
           <input
             type="number"
             required
             step="0.01"
+            max={saleAmount}
             value={formData.amount}
-            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+            onChange={(e) => handleAmountChange(e.target.value)}
+            className={`w-full px-2 py-1.5 text-sm border rounded focus:ring-2 ${
+              amountError
+                ? 'border-red-300 focus:ring-red-500'
+                : 'border-gray-300 focus:ring-purple-500'
+            }`}
           />
+          {amountError && (
+            <p className="text-xs text-red-600 mt-1">{amountError}</p>
+          )}
         </div>
 
         <div>
@@ -1595,7 +1616,7 @@ function DistributionForm({
         </button>
         <button
           type="submit"
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || !!amountError || !formData.amount}
           className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
         >
           {mutation.isPending ? 'Recording...' : 'Record Distribution'}

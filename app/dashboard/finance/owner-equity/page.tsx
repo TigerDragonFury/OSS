@@ -116,8 +116,16 @@ export default async function OwnerEquityPage() {
               <p className="text-xs font-medium text-gray-500 mb-2">Money In Breakdown</p>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
+                  <span className="text-gray-600">Initial Capital</span>
+                  <span className="font-medium">${owner.initial_capital?.toLocaleString() || '0'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Formal Contributions</span>
                   <span className="font-medium">${owner.formal_contributions?.toLocaleString() || '0'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Informal Contributions</span>
+                  <span className="font-medium">${owner.informal_contributions?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Direct Payments</span>
@@ -161,10 +169,6 @@ export default async function OwnerEquityPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Informal Contributions</span>
-                  <span className="font-medium">${owner.informal_contributions?.toLocaleString() || '0'}</span>
-                </div>
               </div>
               
               <p className="text-xs font-medium text-gray-500 mb-2 mt-3">Money Out Breakdown</p>
@@ -178,6 +182,26 @@ export default async function OwnerEquityPage() {
                   <span className="font-medium">${owner.distributions_taken?.toLocaleString() || '0'}</span>
                 </div>
               </div>
+              
+              {(owner.transfers_received > 0 || owner.transfers_given > 0) && (
+                <>
+                  <p className="text-xs font-medium text-gray-500 mb-2 mt-3">Partner Transfers Breakdown</p>
+                  <div className="space-y-1 text-xs">
+                    {owner.transfers_received > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Received from partner</span>
+                        <span className="font-medium text-green-600">+${owner.transfers_received?.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {owner.transfers_given > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Given to partner</span>
+                        <span className="font-medium text-red-600">-${owner.transfers_given?.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ))}

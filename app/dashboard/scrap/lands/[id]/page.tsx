@@ -238,7 +238,12 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
     )
   }
 
-  const totalEquipmentValue = equipmentSales?.reduce((sum, sale) => sum + (sale.sale_price || sale.estimated_value || 0), 0) || 0
+  // Calculate total equipment value (sold items use warehouse_sales price, unsold use estimated_value)
+  const totalEquipmentValue = equipmentSales?.reduce((sum, equipment) => {
+    const sale = warehouseSales?.[equipment.id]
+    return sum + (sale?.sale_price || equipment.estimated_value || 0)
+  }, 0) || 0
+  
   const totalScrapSales = scrapSales?.reduce((sum, sale) => sum + (sale.total_amount || 0), 0) || 0
   const totalExpenses = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0
   const netProfitLoss = totalEquipmentValue + totalScrapSales - (land.purchase_price || 0) - totalExpenses
@@ -458,7 +463,8 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
               {/* Equipment Summary Cards */}
               {(() => {
                 const totalEstValue = equipmentSales?.reduce((sum, e) => sum + (e.estimated_value || 0), 0) || 0
-                const soldItems = equipmentSales?.filter((e) => e.status === 'sold') || []
+                // Only count as sold if there's an actual warehouse_sales record
+                const soldItems = equipmentSales?.filter((e) => warehouseSales?.[e.id]) || []
                 const soldRevenue = soldItems.reduce((sum, e) => {
                   const sale = warehouseSales?.[e.id]
                   return sum + (sale?.sale_price || 0)
@@ -626,7 +632,8 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </button>
-                                {equipment.status !== 'sold' && equipment.status !== 'scrapped' && (
+                                {/* Show sell button if not scrapped AND no warehouse sale exists yet */}
+                                {equipment.status !== 'scrapped' && !warehouseSales?.[equipment.id] && (
                                   <button
                                     onClick={() => setShowSellForm(equipment.id)}
                                     className="text-green-600 hover:text-green-800"
@@ -635,7 +642,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                                     <ShoppingCart className="h-4 w-4" />
                                   </button>
                                 )}
-                                {equipment.status !== 'sold' && equipment.status !== 'scrapped' && (
+                                {equipment.status !== 'scrapped' && !warehouseSales?.[equipment.id] && (
                                   <button
                                     onClick={() => {
                                       if (confirm(`Mark "${equipment.equipment_name}" as scrapped?`)) {
@@ -648,7 +655,7 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                                     <Recycle className="h-4 w-4" />
                                   </button>
                                 )}
-                                {equipment.status !== 'sold' && (
+                                {!warehouseSales?.[equipment.id] && (
                                   <button
                                     onClick={() => {
                                       if (confirm(`Delete "${equipment.equipment_name}"?`)) {

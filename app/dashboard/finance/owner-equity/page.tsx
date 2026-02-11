@@ -115,60 +115,85 @@ export default async function OwnerEquityPage() {
             <div className="mt-4 pt-4 border-t">
               <p className="text-xs font-medium text-gray-500 mb-2">Money In Breakdown</p>
               <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Initial Capital</span>
-                  <span className="font-medium">${owner.initial_capital?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Formal Contributions</span>
-                  <span className="font-medium">${owner.formal_contributions?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Informal Contributions</span>
-                  <span className="font-medium">${owner.informal_contributions?.toLocaleString() || '0'}</span>
-                </div>
+                {owner.initial_capital > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Initial Capital</span>
+                    <span className="font-medium">${owner.initial_capital?.toLocaleString()}</span>
+                  </div>
+                )}
+                {owner.formal_contributions > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Formal Contributions</span>
+                    <span className="font-medium">${owner.formal_contributions?.toLocaleString()}</span>
+                  </div>
+                )}
+                {owner.informal_contributions > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Informal Contributions</span>
+                    <span className="font-medium">${owner.informal_contributions?.toLocaleString()}</span>
+                  </div>
+                )}
+                {owner.expenses_paid > 0 && (
+                  <div className="flex justify-between pl-4">
+                    <span className="text-gray-500">• Expense Payments</span>
+                    <span className="text-gray-500">${owner.expenses_paid?.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Direct Payments</span>
-                  <span className="font-medium">${owner.direct_payments?.toLocaleString() || '0'}</span>
+                  <span className="font-medium">${owner.direct_payments?.toLocaleString()}</span>
                 </div>
                 <div className="pl-4 space-y-1 text-xs text-gray-500">
-                  <div className="flex justify-between">
-                    <span>• Payment Splits</span>
-                    <span>${owner.payment_splits_total?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Vessels</span>
-                    <span>${owner.vessels_paid?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Expenses</span>
-                    <span>${owner.expenses_paid?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Lands</span>
-                    <span>${owner.lands_paid?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Salaries</span>
-                    <span>${owner.salaries_paid?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• Movements</span>
-                    <span>${owner.movements_paid?.toLocaleString() || '0'}</span>
-                  </div>
+                  {owner.payment_splits_total > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Payment Splits</span>
+                      <span>${owner.payment_splits_total?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.vessels_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Vessels (legacy)</span>
+                      <span>${owner.vessels_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.lands_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Lands (legacy)</span>
+                      <span>${owner.lands_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.salaries_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Salaries (legacy)</span>
+                      <span>${owner.salaries_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.movements_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Movements (legacy)</span>
+                      <span>${owner.movements_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
               <p className="text-xs font-medium text-gray-500 mb-2 mt-3">Money Out Breakdown</p>
               <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Formal Withdrawals</span>
-                  <span className="font-medium">${owner.formal_withdrawals?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Distributions Taken</span>
-                  <span className="font-medium">${owner.distributions_taken?.toLocaleString() || '0'}</span>
-                </div>
+                {owner.formal_withdrawals > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Formal Withdrawals</span>
+                    <span className="font-medium">${owner.formal_withdrawals?.toLocaleString()}</span>
+                  </div>
+                )}
+                {owner.distributions_taken > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Distributions Taken</span>
+                    <span className="font-medium">${owner.distributions_taken?.toLocaleString()}</span>
+                  </div>
+                )}
+                {!owner.formal_withdrawals && !owner.distributions_taken && (
+                  <div className="text-xs text-gray-400 italic">No withdrawals or distributions</div>
+                )}
               </div>
               
               {(owner.transfers_received > 0 || owner.transfers_given > 0) && (

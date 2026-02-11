@@ -1,8 +1,8 @@
 -- Fix owner_account_statement to include legacy paid_by_owner_id amounts
 -- Breakdown fields show only what's actually counted in direct_payments total
 -- payment_splits_total added to see what's in payment_splits table
--- equity_balance: excludes partner transfers (for equity comparisons)
--- net_account_balance: includes partner transfers (for account tracking)
+-- Partner transfers treated as equity adjustments: giving increases equity, receiving decreases equity
+-- This helps balance partner accounts when one partner contributes more than the other
 -- Uses subqueries to properly sum without DISTINCT issues
 
 DROP VIEW IF EXISTS owner_account_statement;
@@ -44,7 +44,7 @@ SELECT
     COALESCE(legacy_lands.total, 0) as lands_paid,
     COALESCE(pay_splits.total, 0) as payment_splits_total,
     
-    -- Calculate equity position (excludes partner transfers - only actual company contributions)
+    -- Calculate equity position (includes partner transfers - giving increases equity, receiving decreases equity)
     o.initial_capital + 
     COALESCE(contrib.total, 0) +
     COALESCE(informal.total, 0) +
@@ -55,7 +55,9 @@ SELECT
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) -
     COALESCE(withdraw.total, 0) -
-    COALESCE(distrib.total, 0) as equity_balance,
+    COALESCE(distrib.total, 0) +
+    COALESCE(xfer_out.total, 0) -
+    COALESCE(xfer_in.total, 0) as equity_balance,
     
     -- Calculate net position (transfers_given increases balance, transfers_received decreases balance)
     o.initial_capital + 

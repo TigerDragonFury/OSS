@@ -36,7 +36,7 @@ SELECT
     
     -- Breakdown of direct payments by category (only shows what's actually in direct_payments total)
     COALESCE(legacy_vessels.total, 0) as vessels_paid,
-    COALESCE(legacy_expenses.total, 0) as expenses_paid,
+    COALESCE(informal_expenses.total, 0) as expenses_paid,
     COALESCE(legacy_salaries.total, 0) as salaries_paid,
     COALESCE(legacy_movements.total, 0) as movements_paid,
     COALESCE(legacy_lands.total, 0) as lands_paid,

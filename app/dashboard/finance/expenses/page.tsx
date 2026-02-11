@@ -35,6 +35,15 @@ export default function ExpensesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (expenseId: string) => {
+      // First, delete any associated payment_splits
+      const { error: splitsError } = await supabase
+        .from('payment_splits')
+        .delete()
+        .eq('expense_id', expenseId)
+      
+      if (splitsError) throw splitsError
+
+      // Then delete the expense
       const { error } = await supabase
         .from('expenses')
         .delete()
@@ -47,12 +56,12 @@ export default function ExpensesPage() {
   })
 
   const handleDelete = async (expense: any) => {
-    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?`)) {
+    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?\n\nThis will also delete any associated payment splits.`)) {
       try {
         await deleteMutation.mutateAsync(expense.id)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting expense:', error)
-        alert('Failed to delete expense')
+        alert(`Failed to delete expense: ${error.message || 'Unknown error'}`)
       }
     }
   }

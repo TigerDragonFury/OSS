@@ -57,7 +57,7 @@ SELECT
     COALESCE(withdraw.total, 0) -
     COALESCE(distrib.total, 0) as equity_balance,
     
-    -- Calculate net position (includes partner transfers for account tracking)
+    -- Calculate net position (transfers_given increases balance, transfers_received decreases balance)
     o.initial_capital + 
     COALESCE(contrib.total, 0) +
     COALESCE(informal.total, 0) +
@@ -66,13 +66,13 @@ SELECT
     COALESCE(legacy_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
-    COALESCE(legacy_lands.total, 0) +
-    COALESCE(xfer_in.total, 0) -
+    COALESCE(legacy_lands.total, 0) -
     COALESCE(withdraw.total, 0) -
-    COALESCE(distrib.total, 0) -
-    COALESCE(xfer_out.total, 0) as net_account_balance,
+    COALESCE(distrib.total, 0) +
+    COALESCE(xfer_out.total, 0) -
+    COALESCE(xfer_in.total, 0) as net_account_balance,
     
-    -- Total money in (includes transfers received from partners)
+    -- Total money in (excludes transfers - transfers affect money out only)
     COALESCE(contrib.total, 0) + 
     COALESCE(informal.total, 0) + 
     COALESCE(pay_splits.total, 0) +
@@ -80,13 +80,13 @@ SELECT
     COALESCE(legacy_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
-    COALESCE(legacy_lands.total, 0) +
-    COALESCE(xfer_in.total, 0) as total_money_in,
+    COALESCE(legacy_lands.total, 0) as total_money_in,
     
-    -- Total money out (includes transfers given to partners)
+    -- Total money out (transfers_given reduces it, transfers_received increases it - for equity balancing)
     COALESCE(withdraw.total, 0) + 
-    COALESCE(distrib.total, 0) +
-    COALESCE(xfer_out.total, 0) as total_money_out,
+    COALESCE(distrib.total, 0) -
+    COALESCE(xfer_out.total, 0) +
+    COALESCE(xfer_in.total, 0) as total_money_out,
     
     -- Net partner transfers
     COALESCE(xfer_in.total, 0) - COALESCE(xfer_out.total, 0) as net_partner_transfers

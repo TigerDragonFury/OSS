@@ -72,7 +72,7 @@ SELECT
     COALESCE(distrib.total, 0) -
     COALESCE(xfer_out.total, 0) as net_account_balance,
     
-    -- Total money in
+    -- Total money in (includes transfers received from partners)
     COALESCE(contrib.total, 0) + 
     COALESCE(informal.total, 0) + 
     COALESCE(pay_splits.total, 0) +
@@ -80,10 +80,13 @@ SELECT
     COALESCE(legacy_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
-    COALESCE(legacy_lands.total, 0) as total_money_in,
+    COALESCE(legacy_lands.total, 0) +
+    COALESCE(xfer_in.total, 0) as total_money_in,
     
-    -- Total money out
-    COALESCE(withdraw.total, 0) + COALESCE(distrib.total, 0) as total_money_out,
+    -- Total money out (includes transfers given to partners)
+    COALESCE(withdraw.total, 0) + 
+    COALESCE(distrib.total, 0) +
+    COALESCE(xfer_out.total, 0) as total_money_out,
     
     -- Net partner transfers
     COALESCE(xfer_in.total, 0) - COALESCE(xfer_out.total, 0) as net_partner_transfers

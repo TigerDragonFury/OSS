@@ -1,5 +1,6 @@
--- Fix owner_account_statement to include legacy paid_by_owner_id amounts
--- This ensures expenses with paid_by_owner_id show up in Direct Expenses
+-- Fix owner_account_statement to include legacy paid_by_owner_id amounts AND informal expense payments
+-- This ensures all expenses show up in Direct Payments -> Expenses breakdown
+-- expense_payment types from informal_contributions are added to expenses_paid
 -- Uses subqueries to properly sum without DISTINCT issues
 
 DROP VIEW IF EXISTS owner_account_statement;
@@ -25,17 +26,18 @@ SELECT
     COALESCE(xfer_in.total, 0) as transfers_received,
     COALESCE(xfer_out.total, 0) as transfers_given,
     
-    -- Direct payments: payment_splits + legacy paid_by_owner_id
+    -- Direct payments: payment_splits + legacy paid_by_owner_id + informal expense payments
     COALESCE(pay_splits.total, 0) + 
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
+    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) as direct_payments,
     
     -- Breakdown of direct payments by category
     COALESCE(legacy_vessels.total, 0) as vessels_paid,
-    COALESCE(legacy_expenses.total, 0) as expenses_paid,
+    COALESCE(legacy_expenses.total, 0) + COALESCE(informal_expenses.total, 0) as expenses_paid,
     COALESCE(legacy_salaries.total, 0) as salaries_paid,
     COALESCE(legacy_movements.total, 0) as movements_paid,
     COALESCE(legacy_lands.total, 0) as lands_paid,
@@ -47,6 +49,7 @@ SELECT
     COALESCE(pay_splits.total, 0) +
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
+    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) +
@@ -61,6 +64,7 @@ SELECT
     COALESCE(pay_splits.total, 0) +
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
+    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) as total_money_in,
@@ -87,6 +91,14 @@ LEFT JOIN (
     GROUP BY owner_id
 ) informal 
     ON o.id = informal.owner_id
+-- Include expense_payment types as part of expenses breakdown
+LEFT JOIN (
+    SELECT owner_id, SUM(amount) as total 
+    FROM informal_contributions 
+    WHERE transaction_type = 'expense_payment'
+    GROUP BY owner_id
+) informal_expenses 
+    ON o.id = informal_expenses.owner_id
 LEFT JOIN (SELECT to_owner_id as owner_id, SUM(amount) as total FROM partner_transfers WHERE status = 'completed' GROUP BY to_owner_id) xfer_in 
     ON o.id = xfer_in.owner_id
 LEFT JOIN (SELECT from_owner_id as owner_id, SUM(amount) as total FROM partner_transfers WHERE status = 'completed' GROUP BY from_owner_id) xfer_out 

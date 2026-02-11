@@ -124,6 +124,12 @@ export default async function OwnerEquityPage() {
                   <span className="font-medium">${owner.direct_payments?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="pl-4 space-y-1 text-xs text-gray-500">
+                  {owner.payment_splits_total > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Payment Splits</span>
+                      <span>${owner.payment_splits_total?.toLocaleString()}</span>
+                    </div>
+                  )}
                   {owner.vessels_paid > 0 && (
                     <div className="flex justify-between">
                       <span>• Vessels</span>

@@ -1,0 +1,107 @@
+-- Fix owner_account_statement to include legacy paid_by_owner_id amounts
+-- This ensures expenses with paid_by_owner_id show up in Direct Expenses
+-- Uses subqueries to properly sum without DISTINCT issues
+
+DROP VIEW IF EXISTS owner_account_statement;
+
+CREATE VIEW owner_account_statement AS
+SELECT 
+    o.id as owner_id,
+    o.name as owner_name,
+    o.ownership_percentage,
+    o.initial_capital,
+    
+    -- Formal contributions and withdrawals
+    COALESCE(contrib.total, 0) as formal_contributions,
+    COALESCE(withdraw.total, 0) as formal_withdrawals,
+    
+    -- Distributions taken (money taken out)
+    COALESCE(distrib.total, 0) as distributions_taken,
+    
+    -- Informal contributions (spent personal money on company)
+    COALESCE(informal.total, 0) as informal_contributions,
+    
+    -- Partner transfers
+    COALESCE(xfer_in.total, 0) as transfers_received,
+    COALESCE(xfer_out.total, 0) as transfers_given,
+    
+    -- Direct payments: payment_splits + legacy paid_by_owner_id
+    COALESCE(pay_splits.total, 0) + 
+    COALESCE(legacy_vessels.total, 0) +
+    COALESCE(legacy_expenses.total, 0) +
+    COALESCE(legacy_salaries.total, 0) +
+    COALESCE(legacy_movements.total, 0) +
+    COALESCE(legacy_lands.total, 0) as direct_payments,
+    
+    -- Calculate net position
+    o.initial_capital + 
+    COALESCE(contrib.total, 0) +
+    COALESCE(informal.total, 0) +
+    COALESCE(pay_splits.total, 0) +
+    COALESCE(legacy_vessels.total, 0) +
+    COALESCE(legacy_expenses.total, 0) +
+    COALESCE(legacy_salaries.total, 0) +
+    COALESCE(legacy_movements.total, 0) +
+    COALESCE(legacy_lands.total, 0) +
+    COALESCE(xfer_in.total, 0) -
+    COALESCE(withdraw.total, 0) -
+    COALESCE(distrib.total, 0) -
+    COALESCE(xfer_out.total, 0) as net_account_balance,
+    
+    -- Total money in
+    COALESCE(contrib.total, 0) + 
+    COALESCE(informal.total, 0) + 
+    COALESCE(pay_splits.total, 0) +
+    COALESCE(legacy_vessels.total, 0) +
+    COALESCE(legacy_expenses.total, 0) +
+    COALESCE(legacy_salaries.total, 0) +
+    COALESCE(legacy_movements.total, 0) +
+    COALESCE(legacy_lands.total, 0) as total_money_in,
+    
+    -- Total money out
+    COALESCE(withdraw.total, 0) + COALESCE(distrib.total, 0) as total_money_out,
+    
+    -- Net partner transfers
+    COALESCE(xfer_in.total, 0) - COALESCE(xfer_out.total, 0) as net_partner_transfers
+
+FROM owners o
+
+LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM capital_contributions GROUP BY owner_id) contrib 
+    ON o.id = contrib.owner_id
+LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM capital_withdrawals GROUP BY owner_id) withdraw 
+    ON o.id = withdraw.owner_id
+LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM owner_distributions GROUP BY owner_id) distrib 
+    ON o.id = distrib.owner_id
+LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM informal_contributions GROUP BY owner_id) informal 
+    ON o.id = informal.owner_id
+LEFT JOIN (SELECT to_owner_id as owner_id, SUM(amount) as total FROM partner_transfers WHERE status = 'completed' GROUP BY to_owner_id) xfer_in 
+    ON o.id = xfer_in.owner_id
+LEFT JOIN (SELECT from_owner_id as owner_id, SUM(amount) as total FROM partner_transfers WHERE status = 'completed' GROUP BY from_owner_id) xfer_out 
+    ON o.id = xfer_out.owner_id
+LEFT JOIN (SELECT owner_id, SUM(amount_paid) as total FROM payment_splits GROUP BY owner_id) pay_splits 
+    ON o.id = pay_splits.owner_id
+
+-- Legacy paid_by_owner_id aggregations
+LEFT JOIN (SELECT paid_by_owner_id as owner_id, SUM(purchase_price) as total FROM vessels WHERE paid_by_owner_id IS NOT NULL GROUP BY paid_by_owner_id) legacy_vessels 
+    ON o.id = legacy_vessels.owner_id
+LEFT JOIN (SELECT paid_by_owner_id as owner_id, SUM(amount) as total FROM expenses WHERE paid_by_owner_id IS NOT NULL GROUP BY paid_by_owner_id) legacy_expenses 
+    ON o.id = legacy_expenses.owner_id
+LEFT JOIN (SELECT paid_by_owner_id as owner_id, SUM(total_amount) as total FROM salary_payments WHERE paid_by_owner_id IS NOT NULL GROUP BY paid_by_owner_id) legacy_salaries 
+    ON o.id = legacy_salaries.owner_id
+LEFT JOIN (SELECT paid_by_owner_id as owner_id, SUM(cost) as total FROM vessel_movements WHERE paid_by_owner_id IS NOT NULL GROUP BY paid_by_owner_id) legacy_movements 
+    ON o.id = legacy_movements.owner_id
+LEFT JOIN (SELECT paid_by_owner_id as owner_id, SUM(purchase_price) as total FROM land_purchases WHERE paid_by_owner_id IS NOT NULL GROUP BY paid_by_owner_id) legacy_lands 
+    ON o.id = legacy_lands.owner_id
+
+WHERE o.status = 'active';
+
+-- Verify the fix
+SELECT 
+    owner_name,
+    formal_contributions,
+    direct_payments,
+    informal_contributions,
+    total_money_in,
+    net_account_balance
+FROM owner_account_statement
+ORDER BY owner_name;

@@ -471,11 +471,6 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                               >
                                 <X className="h-3 w-3" /> Cancel
                               </button>
-                            ) : distInfo.isFullyDistributed ? (
-                              <div className="text-xs text-gray-400">
-                                <div className="font-medium">Fully Distributed</div>
-                                <div>{distInfo.taken.toLocaleString()} AED taken</div>
-                              </div>
                             ) : (
                               <div className="space-y-1">
                                 <button
@@ -490,9 +485,14 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                                   <UserCircle className="h-3 w-3" /> 
                                   {distInfo.taken > 0 ? `${distInfo.taken.toLocaleString()} taken` : 'Partner Took This'}
                                 </button>
-                                {distInfo.taken > 0 && (
+                                {distInfo.taken > 0 && !distInfo.isFullyDistributed && (
                                   <div className="text-xs text-gray-500">
                                     {distInfo.remaining.toLocaleString()} AED remaining
+                                  </div>
+                                )}
+                                {distInfo.isFullyDistributed && (
+                                  <div className="text-xs text-green-600 font-medium">
+                                    Fully distributed
                                   </div>
                                 )}
                               </div>
@@ -604,11 +604,6 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                             >
                               <X className="h-3 w-3" /> Cancel
                             </button>
-                          ) : distInfo.isFullyDistributed ? (
-                            <div className="text-xs text-gray-400">
-                              <div className="font-medium">Fully Distributed</div>
-                              <div>{distInfo.taken.toLocaleString()} AED taken</div>
-                            </div>
                           ) : (
                             <div className="space-y-1">
                               <button
@@ -623,9 +618,14 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                                 <UserCircle className="h-3 w-3" /> 
                                 {distInfo.taken > 0 ? `${distInfo.taken.toLocaleString()} taken` : 'Partner Took This'}
                               </button>
-                              {distInfo.taken > 0 && (
+                              {distInfo.taken > 0 && !distInfo.isFullyDistributed && (
                                 <div className="text-xs text-gray-500">
                                   {distInfo.remaining.toLocaleString()} AED remaining
+                                </div>
+                              )}
+                              {distInfo.isFullyDistributed && (
+                                <div className="text-xs text-green-600 font-medium">
+                                  Fully distributed
                                 </div>
                               )}
                             </div>

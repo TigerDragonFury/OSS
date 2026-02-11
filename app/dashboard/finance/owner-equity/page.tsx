@@ -47,8 +47,8 @@ async function getOwnerEquityData() {
 export default async function OwnerEquityPage() {
   const data = await getOwnerEquityData()
   
-  // Calculate total company investment
-  const totalInvestment = data.accountStatement.reduce((sum, owner) => sum + (owner.net_account_balance || 0), 0)
+  // Calculate total company investment (using equity_balance which excludes partner transfers)
+  const totalInvestment = data.accountStatement.reduce((sum, owner) => sum + (owner.equity_balance || 0), 0)
   
   return (
     <div className="space-y-6">
@@ -106,8 +106,8 @@ export default async function OwnerEquityPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 bg-blue-50 rounded px-2">
-                <span className="text-sm font-medium text-gray-900">Account Balance</span>
-                <span className="font-bold text-blue-600">${owner.net_account_balance?.toLocaleString() || '0'}</span>
+                <span className="text-sm font-medium text-gray-900">Equity Position</span>
+                <span className="font-bold text-blue-600">${owner.equity_balance?.toLocaleString() || '0'}</span>
               </div>
             </div>
             
@@ -210,9 +210,9 @@ export default async function OwnerEquityPage() {
             <div className="flex-1">
               <h4 className="text-sm font-medium text-yellow-900">Equity Balance Status</h4>
               <p className="text-sm text-yellow-700 mt-1">
-                {Math.abs((data.accountStatement[0]?.net_account_balance || 0) - (data.accountStatement[1]?.net_account_balance || 0)) < 1000 
+                {Math.abs((data.accountStatement[0]?.equity_balance || 0) - (data.accountStatement[1]?.equity_balance || 0)) < 1000 
                   ? 'Partners are balanced - contributions are approximately equal.' 
-                  : `Difference: $${Math.abs((data.accountStatement[0]?.net_account_balance || 0) - (data.accountStatement[1]?.net_account_balance || 0)).toLocaleString()} - ${(data.accountStatement[0]?.net_account_balance || 0) > (data.accountStatement[1]?.net_account_balance || 0) ? data.accountStatement[0]?.owner_name : data.accountStatement[1]?.owner_name} is ahead. Consider balancing or recording transfers.`}
+                  : `Difference: $${Math.abs((data.accountStatement[0]?.equity_balance || 0) - (data.accountStatement[1]?.equity_balance || 0)).toLocaleString()} - ${(data.accountStatement[0]?.equity_balance || 0) > (data.accountStatement[1]?.equity_balance || 0) ? data.accountStatement[0]?.owner_name : data.accountStatement[1]?.owner_name} is ahead. Consider balancing or recording transfers.`}
               </p>
             </div>
           </div>

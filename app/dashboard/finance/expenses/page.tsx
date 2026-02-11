@@ -43,6 +43,14 @@ export default function ExpensesPage() {
       
       if (splitsError) throw splitsError
 
+      // Delete any associated informal_contributions
+      const { error: informalError } = await supabase
+        .from('informal_contributions')
+        .delete()
+        .eq('transaction_id', expenseId)
+      
+      if (informalError) throw informalError
+
       // Then delete the expense
       const { error } = await supabase
         .from('expenses')
@@ -56,7 +64,7 @@ export default function ExpensesPage() {
   })
 
   const handleDelete = async (expense: any) => {
-    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?\n\nThis will also delete any associated payment splits.`)) {
+    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?\n\nThis will also delete any associated payment splits and informal contributions.`)) {
       try {
         await deleteMutation.mutateAsync(expense.id)
       } catch (error: any) {

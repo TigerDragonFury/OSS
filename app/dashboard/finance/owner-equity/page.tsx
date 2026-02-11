@@ -132,42 +132,30 @@ export default async function OwnerEquityPage() {
                   <span className="font-medium">${owner.direct_payments?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="pl-4 space-y-1 text-xs text-gray-500">
-                  {owner.payment_splits_total > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Payment Splits</span>
-                      <span>${owner.payment_splits_total?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {owner.vessels_paid > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Vessels</span>
-                      <span>${owner.vessels_paid?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {owner.expenses_paid > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Expenses</span>
-                      <span>${owner.expenses_paid?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {owner.lands_paid > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Lands</span>
-                      <span>${owner.lands_paid?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {owner.salaries_paid > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Salaries</span>
-                      <span>${owner.salaries_paid?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {owner.movements_paid > 0 && (
-                    <div className="flex justify-between">
-                      <span>• Movements</span>
-                      <span>${owner.movements_paid?.toLocaleString()}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span>• Payment Splits</span>
+                    <span>${owner.payment_splits_total?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• Vessels</span>
+                    <span>${owner.vessels_paid?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• Expenses</span>
+                    <span>${owner.expenses_paid?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• Lands</span>
+                    <span>${owner.lands_paid?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• Salaries</span>
+                    <span>${owner.salaries_paid?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• Movements</span>
+                    <span>${owner.movements_paid?.toLocaleString() || '0'}</span>
+                  </div>
                 </div>
               </div>
               

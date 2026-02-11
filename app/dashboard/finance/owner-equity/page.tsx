@@ -123,6 +123,38 @@ export default async function OwnerEquityPage() {
                   <span className="text-gray-600">Direct Payments</span>
                   <span className="font-medium">${owner.direct_payments?.toLocaleString() || '0'}</span>
                 </div>
+                <div className="pl-4 space-y-1 text-xs text-gray-500">
+                  {owner.vessels_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Vessels</span>
+                      <span>${owner.vessels_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.expenses_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Expenses</span>
+                      <span>${owner.expenses_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.lands_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Lands</span>
+                      <span>${owner.lands_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.salaries_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Salaries</span>
+                      <span>${owner.salaries_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {owner.movements_paid > 0 && (
+                    <div className="flex justify-between">
+                      <span>• Movements</span>
+                      <span>${owner.movements_paid?.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Informal Contributions</span>
                   <span className="font-medium">${owner.informal_contributions?.toLocaleString() || '0'}</span>

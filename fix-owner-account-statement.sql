@@ -33,6 +33,13 @@ SELECT
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) as direct_payments,
     
+    -- Breakdown of direct payments by category
+    COALESCE(legacy_vessels.total, 0) as vessels_paid,
+    COALESCE(legacy_expenses.total, 0) as expenses_paid,
+    COALESCE(legacy_salaries.total, 0) as salaries_paid,
+    COALESCE(legacy_movements.total, 0) as movements_paid,
+    COALESCE(legacy_lands.total, 0) as lands_paid,
+    
     -- Calculate net position
     o.initial_capital + 
     COALESCE(contrib.total, 0) +
@@ -72,7 +79,13 @@ LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM capital_withdrawals GROUP 
     ON o.id = withdraw.owner_id
 LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM owner_distributions GROUP BY owner_id) distrib 
     ON o.id = distrib.owner_id
-LEFT JOIN (SELECT owner_id, SUM(amount) as total FROM informal_contributions GROUP BY owner_id) informal 
+-- Exclude expense_payment type from informal_contributions since expenses are tracked via paid_by_owner_id (prevents double counting)
+LEFT JOIN (
+    SELECT owner_id, SUM(amount) as total 
+    FROM informal_contributions 
+    WHERE COALESCE(transaction_type, '') NOT IN ('expense_payment')
+    GROUP BY owner_id
+) informal 
     ON o.id = informal.owner_id
 LEFT JOIN (SELECT to_owner_id as owner_id, SUM(amount) as total FROM partner_transfers WHERE status = 'completed' GROUP BY to_owner_id) xfer_in 
     ON o.id = xfer_in.owner_id

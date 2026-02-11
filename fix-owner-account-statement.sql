@@ -1,6 +1,6 @@
--- Fix owner_account_statement to include legacy paid_by_owner_id amounts AND informal expense payments
--- This ensures all expenses show up in Direct Payments -> Expenses breakdown
--- expense_payment types from informal_contributions are added to expenses_paid
+-- Fix owner_account_statement to include legacy paid_by_owner_id amounts
+-- expense_payment types from informal_contributions are shown in expenses_paid breakdown ONLY (not double-counted in totals)
+-- This prevents duplication while providing detailed expense visibility
 -- Uses subqueries to properly sum without DISTINCT issues
 
 DROP VIEW IF EXISTS owner_account_statement;
@@ -26,16 +26,15 @@ SELECT
     COALESCE(xfer_in.total, 0) as transfers_received,
     COALESCE(xfer_out.total, 0) as transfers_given,
     
-    -- Direct payments: payment_splits + legacy paid_by_owner_id + informal expense payments
+    -- Direct payments: payment_splits + legacy paid_by_owner_id
     COALESCE(pay_splits.total, 0) + 
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
-    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) as direct_payments,
     
-    -- Breakdown of direct payments by category
+    -- Breakdown of direct payments by category (informal_expenses shown in breakdown but not double-counted in total)
     COALESCE(legacy_vessels.total, 0) as vessels_paid,
     COALESCE(legacy_expenses.total, 0) + COALESCE(informal_expenses.total, 0) as expenses_paid,
     COALESCE(legacy_salaries.total, 0) as salaries_paid,
@@ -49,7 +48,6 @@ SELECT
     COALESCE(pay_splits.total, 0) +
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
-    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) +
@@ -64,7 +62,6 @@ SELECT
     COALESCE(pay_splits.total, 0) +
     COALESCE(legacy_vessels.total, 0) +
     COALESCE(legacy_expenses.total, 0) +
-    COALESCE(informal_expenses.total, 0) +
     COALESCE(legacy_salaries.total, 0) +
     COALESCE(legacy_movements.total, 0) +
     COALESCE(legacy_lands.total, 0) as total_money_in,

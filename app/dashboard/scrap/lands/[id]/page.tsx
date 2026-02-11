@@ -4,7 +4,7 @@ import React from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { ArrowLeft, Plus, Package, TrendingUp, DollarSign, UserCircle, X } from 'lucide-react'
+import { ArrowLeft, Plus, Package, DollarSign, UserCircle, X, Edit2, Trash2, ShoppingCart, Recycle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LandDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +14,9 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
   const [showEquipmentForm, setShowEquipmentForm] = useState(false)
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [recordingDistributionFor, setRecordingDistributionFor] = useState<string | null>(null)
+  const [showSellForm, setShowSellForm] = useState<string | null>(null)
+  const [editingEquipment, setEditingEquipment] = useState<any>(null)
+  const [recordingEquipmentDistFor, setRecordingEquipmentDistFor] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
 
@@ -106,6 +109,53 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
     }
   })
 
+  // Fetch warehouse sales for this land's equipment
+  const { data: warehouseSales } = useQuery({
+    queryKey: ['warehouse_sales_land', resolvedParams.id],
+    queryFn: async () => {
+      // Get all equipment IDs for this land first
+      const { data: equipIds } = await supabase
+        .from('land_equipment')
+        .select('id')
+        .eq('land_id', resolvedParams.id)
+      if (!equipIds || equipIds.length === 0) return {}
+
+      const ids = equipIds.map((e: any) => e.id)
+      const { data, error } = await supabase
+        .from('warehouse_sales')
+        .select('*')
+        .in('land_equipment_id', ids)
+      if (error) throw error
+
+      // Index by land_equipment_id for quick lookup
+      const byEquipmentId: Record<string, any> = {}
+      data?.forEach((sale: any) => {
+        byEquipmentId[sale.land_equipment_id] = sale
+      })
+      return byEquipmentId
+    }
+  })
+
+  // Fetch distributions for equipment sales
+  const { data: equipmentDistributions } = useQuery({
+    queryKey: ['equipment_distributions', resolvedParams.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('owner_distributions')
+        .select('source_id, amount')
+        .eq('source_type', 'equipment_sale')
+      if (error) throw error
+
+      const grouped = data.reduce((acc: any, curr: any) => {
+        if (curr.source_id) {
+          acc[curr.source_id] = (acc[curr.source_id] || 0) + parseFloat(curr.amount)
+        }
+        return acc
+      }, {})
+      return grouped
+    }
+  })
+
   // Helper function to get distribution info for a sale
   const getDistributionInfo = (saleId: string, saleAmount: number) => {
     const taken = saleDistributions?.[saleId] || 0
@@ -113,6 +163,72 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
     const isFullyDistributed = remaining <= 0
     return { taken, remaining, isFullyDistributed }
   }
+
+  // Helper for equipment sale distributions
+  const getEquipmentDistInfo = (saleId: string, saleAmount: number) => {
+    const taken = equipmentDistributions?.[saleId] || 0
+    const remaining = saleAmount - taken
+    const isFullyDistributed = remaining <= 0
+    return { taken, remaining, isFullyDistributed }
+  }
+
+  // Update equipment mutation
+  const updateEquipment = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      const { error } = await supabase
+        .from('land_equipment')
+        .update(data)
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_equipment', resolvedParams.id] })
+    }
+  })
+
+  // Delete equipment mutation
+  const deleteEquipment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('land_equipment')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_equipment', resolvedParams.id] })
+    }
+  })
+
+  // Sell equipment mutation - creates warehouse_sales record + updates status
+  const sellEquipment = useMutation({
+    mutationFn: async ({ equipmentId, saleData }: { equipmentId: string, saleData: any }) => {
+      const equipment = equipmentSales?.find((e: any) => e.id === equipmentId)
+      // Insert warehouse sale
+      const { error: saleError } = await supabase
+        .from('warehouse_sales')
+        .insert([{
+          warehouse_id: equipment?.warehouse_id,
+          land_equipment_id: equipmentId,
+          item_name: equipment?.equipment_name,
+          ...saleData,
+          sale_price: parseFloat(saleData.sale_price)
+        }])
+      if (saleError) throw saleError
+
+      // Update equipment status to sold
+      const { error: updateError } = await supabase
+        .from('land_equipment')
+        .update({ status: 'sold' })
+        .eq('id', equipmentId)
+      if (updateError) throw updateError
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['land_equipment', resolvedParams.id] })
+      queryClient.invalidateQueries({ queryKey: ['warehouse_sales_land', resolvedParams.id] })
+      setShowSellForm(null)
+    }
+  })
 
   if (!land) {
     return (
@@ -339,10 +455,47 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
           {/* Equipment Tab */}
           {activeTab === 'equipment' && (
             <div>
+              {/* Equipment Summary Cards */}
+              {(() => {
+                const totalEstValue = equipmentSales?.reduce((sum, e) => sum + (e.estimated_value || 0), 0) || 0
+                const soldItems = equipmentSales?.filter((e) => e.status === 'sold') || []
+                const soldRevenue = soldItems.reduce((sum, e) => {
+                  const sale = warehouseSales?.[e.id]
+                  return sum + (sale?.sale_price || 0)
+                }, 0)
+                const inWarehouseCount = equipmentSales?.filter((e) => e.status === 'in_warehouse' || e.status === 'available').length || 0
+                const scrappedCount = equipmentSales?.filter((e) => e.status === 'scrapped').length || 0
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-xs text-blue-600 font-medium">Total Equipment</p>
+                      <p className="text-xl font-bold text-blue-900 mt-1">{equipmentSales?.length || 0} items</p>
+                      <p className="text-xs text-blue-600 mt-1">Est. {totalEstValue.toLocaleString()} AED</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-xs text-green-600 font-medium">Sold</p>
+                      <p className="text-xl font-bold text-green-900 mt-1">{soldRevenue.toLocaleString()} AED</p>
+                      <p className="text-xs text-green-600 mt-1">{soldItems.length} items sold</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <p className="text-xs text-purple-600 font-medium">In Warehouse</p>
+                      <p className="text-xl font-bold text-purple-900 mt-1">{inWarehouseCount} items</p>
+                      <p className="text-xs text-purple-600 mt-1">Available / Stored</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-4">
+                      <p className="text-xs text-red-600 font-medium">Scrapped</p>
+                      <p className="text-xl font-bold text-red-900 mt-1">{scrappedCount} items</p>
+                      <p className="text-xs text-red-600 mt-1">Written off</p>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Equipment Extracted</h3>
                 <button
-                  onClick={() => setShowEquipmentForm(true)}
+                  onClick={() => { setEditingEquipment(null); setShowEquipmentForm(true) }}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -354,61 +507,194 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Condition</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estimated Value</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Value</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Info</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {equipmentSales?.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center">
+                        <td colSpan={7} className="px-6 py-12 text-center">
                           <Package className="mx-auto h-12 w-12 text-gray-400" />
                           <h3 className="mt-2 text-sm font-medium text-gray-900">No equipment records</h3>
                           <p className="mt-1 text-sm text-gray-500">Start by adding equipment extracted from this land.</p>
                         </td>
                       </tr>
                     ) : (
-                      equipmentSales?.map((equipment) => (
-                        <tr key={equipment.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {equipment.equipment_name}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {equipment.description || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                            {equipment.condition || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {equipment.estimated_value?.toLocaleString() || 0} AED
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              equipment.status === 'sold_as_is' ? 'bg-green-100 text-green-800' :
-                              equipment.status === 'available' ? 'bg-blue-100 text-blue-800' :
-                              equipment.status === 'scrapped' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {equipment.status?.replace('_', ' ').toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {equipment.sale_price ? (
-                              <div>
-                                <div className="font-medium text-green-600">{equipment.sale_price.toLocaleString()} AED</div>
-                                <div className="text-xs text-gray-500">
-                                  {equipment.sale_date ? new Date(equipment.sale_date).toLocaleDateString() : ''}
+                      equipmentSales?.map((equipment) => {
+                        const sale = warehouseSales?.[equipment.id]
+                        const distInfo = sale ? getEquipmentDistInfo(sale.id, sale.sale_price || 0) : null
+
+                        return (
+                        <React.Fragment key={equipment.id}>
+                          <tr className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{equipment.equipment_name}</div>
+                              {equipment.description && (
+                                <div className="text-xs text-gray-500">{equipment.description}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                equipment.condition === 'good' ? 'bg-green-100 text-green-800' :
+                                equipment.condition === 'fair' ? 'bg-yellow-100 text-yellow-800' :
+                                equipment.condition === 'poor' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {equipment.condition?.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {equipment.estimated_value?.toLocaleString() || 0} AED
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                equipment.status === 'sold' ? 'bg-green-100 text-green-800' :
+                                equipment.status === 'available' ? 'bg-blue-100 text-blue-800' :
+                                equipment.status === 'in_warehouse' ? 'bg-purple-100 text-purple-800' :
+                                equipment.status === 'scrapped' ? 'bg-red-100 text-red-800' :
+                                equipment.status === 'reserved' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {equipment.status?.replace('_', ' ').toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {sale ? (
+                                <div>
+                                  <div className="font-medium text-green-600">{sale.sale_price?.toLocaleString()} AED</div>
+                                  <div className="text-xs text-gray-500">
+                                    {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : ''}
+                                  </div>
+                                  {sale.customer_name && (
+                                    <div className="text-xs text-gray-500">Buyer: {sale.customer_name}</div>
+                                  )}
                                 </div>
+                              ) : (
+                                <span className="text-gray-400">Not sold</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {sale && distInfo ? (
+                                recordingEquipmentDistFor === sale.id ? (
+                                  <button
+                                    onClick={() => setRecordingEquipmentDistFor(null)}
+                                    className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                                  >
+                                    <X className="h-3 w-3" /> Cancel
+                                  </button>
+                                ) : distInfo.isFullyDistributed ? (
+                                  <div className="text-xs text-gray-400">
+                                    <div className="font-medium">Fully Distributed</div>
+                                    <div>{distInfo.taken.toLocaleString()} AED taken</div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <button
+                                      onClick={() => setRecordingEquipmentDistFor(sale.id)}
+                                      className={`text-xs px-3 py-1 rounded flex items-center gap-1 ${
+                                        distInfo.taken > 0
+                                          ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                      }`}
+                                      title="Record that a partner took this money"
+                                    >
+                                      <UserCircle className="h-3 w-3" />
+                                      {distInfo.taken > 0 ? `${distInfo.taken.toLocaleString()} taken` : 'Partner Took This'}
+                                    </button>
+                                    {distInfo.taken > 0 && (
+                                      <div className="text-xs text-gray-500">
+                                        {distInfo.remaining.toLocaleString()} AED remaining
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => { setEditingEquipment(equipment); setShowEquipmentForm(true) }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                {equipment.status !== 'sold' && equipment.status !== 'scrapped' && (
+                                  <button
+                                    onClick={() => setShowSellForm(equipment.id)}
+                                    className="text-green-600 hover:text-green-800"
+                                    title="Sell Equipment"
+                                  >
+                                    <ShoppingCart className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {equipment.status !== 'sold' && equipment.status !== 'scrapped' && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Mark "${equipment.equipment_name}" as scrapped?`)) {
+                                        updateEquipment.mutate({ id: equipment.id, data: { status: 'scrapped' } })
+                                      }
+                                    }}
+                                    className="text-orange-600 hover:text-orange-800"
+                                    title="Mark as Scrapped"
+                                  >
+                                    <Recycle className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {equipment.status !== 'sold' && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Delete "${equipment.equipment_name}"?`)) {
+                                        deleteEquipment.mutate(equipment.id)
+                                      }
+                                    }}
+                                    className="text-red-600 hover:text-red-800"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
-                            ) : (
-                              <span className="text-gray-400">Not sold</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                          </tr>
+                          {/* Sell Equipment Inline Form */}
+                          {showSellForm === equipment.id && (
+                            <tr>
+                              <td colSpan={7} className="px-6 py-4 bg-green-50">
+                                <SellEquipmentForm
+                                  equipment={equipment}
+                                  onSell={(saleData) => sellEquipment.mutate({ equipmentId: equipment.id, saleData })}
+                                  isPending={sellEquipment.isPending}
+                                  onClose={() => setShowSellForm(null)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                          {/* Distribution Form for sold equipment */}
+                          {sale && recordingEquipmentDistFor === sale.id && (
+                            <tr>
+                              <td colSpan={7} className="px-6 py-4 bg-purple-50">
+                                <DistributionForm
+                                  saleAmount={distInfo!.remaining > 0 ? distInfo!.remaining : sale.sale_price}
+                                  sourceType="equipment_sale"
+                                  sourceId={sale.id}
+                                  saleDate={sale.sale_date}
+                                  owners={owners || []}
+                                  onClose={() => setRecordingEquipmentDistFor(null)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
@@ -605,7 +891,8 @@ export default function LandDetailPage({ params }: { params: Promise<{ id: strin
       {showEquipmentForm && (
         <EquipmentForm
           landId={resolvedParams.id}
-          onClose={() => setShowEquipmentForm(false)}
+          editingEquipment={editingEquipment}
+          onClose={() => { setShowEquipmentForm(false); setEditingEquipment(null) }}
         />
       )}
 
@@ -782,17 +1069,18 @@ function ScrapSaleForm({ landId, onClose }: { landId: string, onClose: () => voi
   )
 }
 
-// Equipment Form Component
-function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => void }) {
+// Equipment Form Component (supports add + edit)
+function EquipmentForm({ landId, editingEquipment, onClose }: { landId: string, editingEquipment?: any, onClose: () => void }) {
   const supabase = createClient()
   const queryClient = useQueryClient()
+  const isEditing = !!editingEquipment
   const [formData, setFormData] = useState({
-    equipment_name: '',
-    description: '',
-    condition: 'good',
-    estimated_value: '',
-    warehouse_id: '',
-    status: 'available'
+    equipment_name: editingEquipment?.equipment_name || '',
+    description: editingEquipment?.description || '',
+    condition: editingEquipment?.condition || 'good',
+    estimated_value: editingEquipment?.estimated_value?.toString() || '',
+    warehouse_id: editingEquipment?.warehouse_id || '',
+    status: editingEquipment?.status || 'available'
   })
 
   // Fetch warehouses for dropdown
@@ -810,14 +1098,22 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
-        .from('land_equipment')
-        .insert([{
-          land_id: landId,
-          ...data,
-          estimated_value: parseFloat(data.estimated_value)
-        }])
-      if (error) throw error
+      const payload = {
+        ...data,
+        estimated_value: parseFloat(data.estimated_value)
+      }
+      if (isEditing) {
+        const { error } = await supabase
+          .from('land_equipment')
+          .update(payload)
+          .eq('id', editingEquipment.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('land_equipment')
+          .insert([{ land_id: landId, ...payload }])
+        if (error) throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['land_equipment', landId] })
@@ -829,8 +1125,8 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Add Equipment</h2>
-          
+          <h2 className="text-2xl font-bold mb-6">{isEditing ? 'Edit Equipment' : 'Add Equipment'}</h2>
+
           <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(formData) }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -900,6 +1196,7 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
                   <option value="in_warehouse">In Warehouse</option>
                   <option value="scrapped">Scrapped</option>
                   <option value="reserved">Reserved</option>
+                  <option value="sold">Sold</option>
                 </select>
               </div>
 
@@ -927,7 +1224,7 @@ function EquipmentForm({ landId, onClose }: { landId: string, onClose: () => voi
                 disabled={mutation.isPending}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {mutation.isPending ? 'Saving...' : 'Add Equipment'}
+                {mutation.isPending ? 'Saving...' : isEditing ? 'Update Equipment' : 'Add Equipment'}
               </button>
             </div>
           </form>
@@ -1067,6 +1364,110 @@ function ExpenseForm({ landId, onClose }: { landId: string, onClose: () => void 
   )
 }
 
+// Sell Equipment Inline Form
+function SellEquipmentForm({
+  equipment,
+  onSell,
+  isPending,
+  onClose
+}: {
+  equipment: any
+  onSell: (data: any) => void
+  isPending: boolean
+  onClose: () => void
+}) {
+  const [formData, setFormData] = useState({
+    sale_date: new Date().toISOString().split('T')[0],
+    sale_price: equipment.estimated_value?.toString() || '',
+    customer_name: '',
+    payment_method: 'cash',
+    notes: ''
+  })
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSell(formData) }} className="space-y-3">
+      <div className="flex items-center gap-2 mb-2">
+        <ShoppingCart className="h-5 w-5 text-green-600" />
+        <h4 className="font-semibold text-gray-900">Sell: {equipment.equipment_name}</h4>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Sale Price (AED) *</label>
+          <input
+            type="number"
+            required
+            step="0.01"
+            value={formData.sale_price}
+            onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Sale Date *</label>
+          <input
+            type="date"
+            required
+            value={formData.sale_date}
+            onChange={(e) => setFormData({ ...formData, sale_date: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Buyer Name</label>
+          <input
+            type="text"
+            value={formData.customer_name}
+            onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+            placeholder="Buyer name"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
+          <select
+            value={formData.payment_method}
+            onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+          >
+            <option value="cash">Cash</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="check">Check</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+        <input
+          type="text"
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          placeholder="Optional notes"
+          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+        >
+          {isPending ? 'Recording Sale...' : 'Record Sale'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 // Distribution Form Component - Record when partner took money from sale
 function DistributionForm({ 
   saleAmount, 
@@ -1109,6 +1510,7 @@ function DistributionForm({
       queryClient.invalidateQueries({ queryKey: ['owner_distributions'] })
       queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
       queryClient.invalidateQueries({ queryKey: ['sale_distributions'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment_distributions'] })
       onClose()
     }
   })

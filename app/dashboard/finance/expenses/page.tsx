@@ -282,7 +282,8 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
           expense_id: expenseId,
           owner_id: split.owner_id,
           amount_paid: split.amount_paid,
-          payment_date: data.expenseData.date
+          payment_date: data.expenseData.date,
+          source_of_funds: split.source_of_funds || 'personal_savings'
         }))
 
         const { error: splitsError } = await supabase

@@ -14,6 +14,7 @@ interface PaymentSplit {
   owner_id: string
   owner_name?: string
   amount_paid: number
+  source_of_funds?: string
 }
 
 interface PaymentSplitsInputProps {
@@ -40,7 +41,7 @@ export default function PaymentSplitsInput({
   }, [existingSplits])
   
   const addSplit = () => {
-    const newSplit = { owner_id: '', amount_paid: 0 }
+    const newSplit = { owner_id: '', amount_paid: 0, source_of_funds: 'personal_savings' }
     const updated = [...splits, newSplit]
     setSplits(updated)
     onChange(updated)
@@ -52,7 +53,7 @@ export default function PaymentSplitsInput({
     onChange(updated)
   }
   
-  const updateSplit = (index: number, field: 'owner_id' | 'amount_paid', value: string | number) => {
+  const updateSplit = (index: number, field: 'owner_id' | 'amount_paid' | 'source_of_funds', value: string | number) => {
     const updated = [...splits]
     if (field === 'owner_id') {
       updated[index].owner_id = value as string
@@ -60,6 +61,8 @@ export default function PaymentSplitsInput({
       if (owner) {
         updated[index].owner_name = owner.name
       }
+    } else if (field === 'source_of_funds') {
+      updated[index].source_of_funds = value as string
     } else {
       updated[index].amount_paid = parseFloat(value as string) || 0
     }
@@ -122,6 +125,19 @@ export default function PaymentSplitsInput({
                   required
                   disabled={disabled}
                 />
+              </div>
+              <div className="w-40">
+                <select
+                  value={split.source_of_funds || 'personal_savings'}
+                  onChange={(e) => updateSplit(index, 'source_of_funds', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  disabled={disabled}
+                >
+                  <option value="personal_savings">Personal Savings</option>
+                  <option value="scrap_profit">Scrap Profit</option>
+                  <option value="equipment_sale">Equipment Sale</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               {!disabled && (
                 <button

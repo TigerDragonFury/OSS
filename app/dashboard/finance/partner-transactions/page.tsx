@@ -739,7 +739,7 @@ function ContributionForm({ onClose, owners }: { onClose: () => void, owners: an
     contribution_date: new Date().toISOString().split('T')[0],
     amount: '',
     transaction_type: 'expense_payment',
-    source_of_funds: 'scrap_profit',
+    source_of_funds: 'personal_savings',
     description: ''
   })
 
@@ -830,9 +830,9 @@ function ContributionForm({ onClose, owners }: { onClose: () => void, owners: an
               onChange={(e) => setFormData({ ...formData, source_of_funds: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
+              <option value="personal_savings">Personal Savings</option>
               <option value="scrap_profit">Scrap Profit</option>
               <option value="equipment_sale">Equipment Sale</option>
-              <option value="personal_savings">Personal Savings</option>
               <option value="distributed_profit">Distributed Profit</option>
               <option value="other">Other</option>
             </select>

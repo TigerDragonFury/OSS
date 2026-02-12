@@ -57,6 +57,13 @@ export default async function OwnerEquityPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Owner Equity Ledger</h1>
           <p className="text-gray-600 mt-1">Track capital contributions and expenses by owner</p>
+          <div className="mt-2 text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 max-w-3xl">
+            <p className="text-blue-900">
+              <strong>💡 Equity vs Net New Capital:</strong> <em>Equity Position</em> shows legal ownership stake (for taxes/accounting). 
+              <em>Net New Capital</em> shows only personal money contributed (excludes company profits withdrawn then re-invested). 
+              Use Net New Capital for fair contribution comparison between partners.
+            </p>
+          </div>
         </div>
         <div className="flex gap-3">
           <Link
@@ -109,6 +116,12 @@ export default async function OwnerEquityPage() {
                 <span className="text-sm font-medium text-gray-900">Equity Position</span>
                 <span className="font-bold text-blue-600">${owner.equity_balance?.toLocaleString() || '0'}</span>
               </div>
+              {owner.net_new_capital !== owner.equity_balance && (
+                <div className="flex justify-between items-center py-2 bg-green-50 rounded px-2 mt-2">
+                  <span className="text-sm font-medium text-gray-900">Net New Capital</span>
+                  <span className="font-bold text-green-700">${owner.net_new_capital?.toLocaleString() || '0'}</span>
+                </div>
+              )}
             </div>
             
             {/* Breakdown */}
@@ -128,10 +141,28 @@ export default async function OwnerEquityPage() {
                   </div>
                 )}
                 {owner.informal_contributions > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Informal Contributions</span>
-                    <span className="font-medium">${owner.informal_contributions?.toLocaleString()}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Informal Contributions</span>
+                      <span className="font-medium">${owner.informal_contributions?.toLocaleString()}</span>
+                    </div>
+                    {(owner.new_capital_contributed > 0 || owner.recycled_funds_used > 0) && (
+                      <div className="pl-4 space-y-1 text-xs text-gray-500">
+                        {owner.new_capital_contributed > 0 && (
+                          <div className="flex justify-between">
+                            <span>• New Capital (personal)</span>
+                            <span>${owner.new_capital_contributed?.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {owner.recycled_funds_used > 0 && (
+                          <div className="flex justify-between">
+                            <span>✓ Recycled Funds (company)</span>
+                            <span>${owner.recycled_funds_used?.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
                 {owner.expenses_paid > 0 && (
                   <div className="flex justify-between pl-4">

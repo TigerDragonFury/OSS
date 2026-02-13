@@ -277,6 +277,12 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
           .delete()
           .eq('expense_id', expenseId)
 
+        // Delete existing informal_contributions for this expense
+        await supabase
+          .from('informal_contributions')
+          .delete()
+          .eq('transaction_id', expenseId)
+
         // Insert new splits
         const splitsData = data.paymentSplits.map((split: any) => ({
           expense_id: expenseId,
@@ -290,12 +296,36 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
           .from('payment_splits')
           .insert(splitsData)
         if (splitsError) throw splitsError
+
+        // Insert corresponding informal_contributions for each split
+        const informalData = data.paymentSplits.map((split: any) => ({
+          owner_id: split.owner_id,
+          contribution_date: data.expenseData.date,
+          amount: split.amount_paid,
+          transaction_type: 'expense_payment',
+          transaction_id: expenseId,
+          source_of_funds: split.source_of_funds || 'personal_savings',
+          description: `Payment split for: ${data.expenseData.description || data.expenseData.expense_type || 'expense'}`
+        }))
+
+        const { error: informalError } = await supabase
+          .from('informal_contributions')
+          .insert(informalData)
+        if (informalError) throw informalError
+      } else if (expenseId) {
+        // If no payment splits, clear any existing informal_contributions
+        await supabase
+          .from('informal_contributions')
+          .delete()
+          .eq('transaction_id', expenseId)
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
       queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
       queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
+      queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
+      queryClient.invalidateQueries({ queryKey: ['informal_contributions'] })
       onClose()
     }
   })

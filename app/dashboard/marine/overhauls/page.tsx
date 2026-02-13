@@ -329,7 +329,8 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
       return (data || []).map(split => ({
         owner_id: split.owner_id,
         owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid
+        amount_paid: split.amount_paid,
+        source_of_funds: split.source_of_funds || 'personal_savings'
       }))
     }
   })
@@ -375,7 +376,8 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
           overhaul_project_id: projectId,
           owner_id: split.owner_id,
           amount_paid: split.amount_paid,
-          payment_date: data.projectData.start_date || new Date().toISOString().split('T')[0]
+          payment_date: data.projectData.start_date || new Date().toISOString().split('T')[0],
+          source_of_funds: split.source_of_funds || 'personal_savings'
         }))
 
         const { error: splitsError } = await supabase

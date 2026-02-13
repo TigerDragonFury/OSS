@@ -254,7 +254,8 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
       return data.map(split => ({
         owner_id: split.owner_id,
         owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid
+        amount_paid: split.amount_paid,
+        source_of_funds: split.source_of_funds || 'personal_savings'
       }))
     }
   })
@@ -293,7 +294,8 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
           land_purchase_id: landId,
           owner_id: split.owner_id,
           amount_paid: split.amount_paid,
-          payment_date: data.landData.purchase_date || new Date().toISOString().split('T')[0]
+          payment_date: data.landData.purchase_date || new Date().toISOString().split('T')[0],
+          source_of_funds: split.source_of_funds || 'personal_savings'
         }))
         
         const { error: splitsError } = await supabase

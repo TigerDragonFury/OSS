@@ -58,10 +58,16 @@ export default async function OwnerEquityPage() {
           <h1 className="text-2xl font-bold text-gray-900">Owner Equity Ledger</h1>
           <p className="text-gray-600 mt-1">Track capital contributions and expenses by owner</p>
           <div className="mt-2 text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 max-w-3xl">
-            <p className="text-blue-900">
-              <strong>💡 Equity vs Net New Capital:</strong> <em>Equity Position</em> shows legal ownership stake (for taxes/accounting). 
-              <em>Net New Capital</em> shows only personal money contributed (excludes company profits withdrawn then re-invested). 
-              Use Net New Capital for fair contribution comparison between partners.
+            <p className="text-blue-900 mb-2">
+              <strong>💡 Net Contribution Formula:</strong>
+            </p>
+            <ul className="text-blue-800 space-y-1 ml-4">
+              <li><strong>Personal Out-of-Pocket:</strong> All expenses paid with TRUE personal funds (company money used = $0)</li>
+              <li><strong>Benefits Received:</strong> Cash distributions + Assets kept + Transfers received - Transfers given</li>
+              <li><strong>Net Contribution:</strong> Personal Out-of-Pocket - Benefits Received = <em>Fair comparison metric</em></li>
+            </ul>
+            <p className="text-blue-700 mt-2 text-xs italic">
+              Settlement Amount = (Partner A's Net - Partner B's Net) ÷ 2
             </p>
           </div>
         </div>
@@ -113,15 +119,37 @@ export default async function OwnerEquityPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 bg-blue-50 rounded px-2">
-                <span className="text-sm font-medium text-gray-900">Equity Position</span>
+                <span className="text-sm font-medium text-gray-900">Traditional Equity</span>
                 <span className="font-bold text-blue-600">${owner.equity_balance?.toLocaleString() || '0'}</span>
               </div>
-              {owner.net_new_capital !== owner.equity_balance && (
-                <div className="flex justify-between items-center py-2 bg-green-50 rounded px-2 mt-2">
-                  <span className="text-sm font-medium text-gray-900">Net New Capital</span>
-                  <span className="font-bold text-green-700">${owner.net_new_capital?.toLocaleString() || '0'}</span>
+              
+              {/* Net Contribution System */}
+              <div className="mt-3 space-y-2">
+                <div className="flex justify-between items-center py-2 bg-purple-50 rounded px-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    💰 Personal Out-of-Pocket
+                  </span>
+                  <span className="font-bold text-purple-700">
+                    ${owner.total_personal_outofpocket?.toLocaleString() || '0'}
+                  </span>
                 </div>
-              )}
+                <div className="flex justify-between items-center py-2 bg-red-50 rounded px-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    📤 Benefits Received
+                  </span>
+                  <span className="font-bold text-red-700">
+                    ${owner.total_benefits_received?.toLocaleString() || '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 bg-emerald-100 rounded px-2 border-2 border-emerald-300">
+                  <span className="text-sm font-semibold text-gray-900">
+                    ⚖️ Net Contribution
+                  </span>
+                  <span className="font-bold text-emerald-700 text-lg">
+                    ${owner.net_contribution?.toLocaleString() || '0'}
+                  </span>
+                </div>
+              </div>
             </div>
             
             {/* Breakdown */}
@@ -243,6 +271,45 @@ export default async function OwnerEquityPage() {
                         <span className="font-medium text-red-600">-${owner.transfers_given?.toLocaleString()}</span>
                       </div>
                     )}
+                  </div>
+                </>
+              )}
+              
+              {/* Benefits Received Formula Breakdown (Phase 2) */}
+              {owner.total_benefits_received > 0 && (
+                <>
+                  <p className="text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded mb-2 mt-3">
+                    📤 Benefits Received Formula
+                  </p>
+                  <div className="space-y-1 text-xs bg-red-50 p-2 rounded">
+                    {owner.formal_withdrawals > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Withdrawals</span>
+                        <span className="font-medium">+${owner.formal_withdrawals?.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {owner.distributions_taken > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Distributions</span>
+                        <span className="font-medium">+${owner.distributions_taken?.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {owner.transfers_received > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Transfers Received</span>
+                        <span className="font-medium">+${owner.transfers_received?.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {owner.transfers_given > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Transfers Given</span>
+                        <span className="font-medium text-gray-500">-${owner.transfers_given?.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-1 border-t border-red-200">
+                      <span className="font-semibold text-red-800">Total Benefits</span>
+                      <span className="font-bold text-red-800">${owner.total_benefits_received?.toLocaleString()}</span>
+                    </div>
                   </div>
                 </>
               )}

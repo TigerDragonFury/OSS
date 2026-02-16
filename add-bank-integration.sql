@@ -158,25 +158,36 @@ SELECT
     END), 0) as total_expenses,
     -- Calculate total withdrawals from this account
     COALESCE(SUM(CASE 
-        WHEN bw.from_account_id = ba.id AND bw.withdrawal_date >= ba.opening_date
-        THEN bw.amount 
+        WHEN bw_out.from_account_id = ba.id AND bw_out.withdrawal_date >= ba.opening_date
+        THEN bw_out.amount 
         ELSE 0 
     END), 0) as total_withdrawals,
-    -- Calculated balance = opening balance + income - expenses - withdrawals
+    -- Calculate total transfers received by this account
+    COALESCE(SUM(CASE 
+        WHEN bw_in.to_account_id = ba.id AND bw_in.withdrawal_date >= ba.opening_date
+        THEN bw_in.amount 
+        ELSE 0 
+    END), 0) as total_transfers_in,
+    -- Calculated balance = opening balance + income + transfers_in - expenses - withdrawals
     (ba.opening_balance + 
      COALESCE(SUM(CASE 
         WHEN ir.bank_account_id = ba.id AND ir.income_date >= ba.opening_date
         THEN ir.amount 
         ELSE 0 
-     END), 0) - 
+     END), 0) +
+     COALESCE(SUM(CASE 
+        WHEN bw_in.to_account_id = ba.id AND bw_in.withdrawal_date >= ba.opening_date
+        THEN bw_in.amount 
+        ELSE 0 
+     END), 0) -
      COALESCE(SUM(CASE 
         WHEN e.bank_account_id = ba.id AND e.date >= ba.opening_date
         THEN e.amount 
         ELSE 0 
      END), 0) -
      COALESCE(SUM(CASE 
-        WHEN bw.from_account_id = ba.id AND bw.withdrawal_date >= ba.opening_date
-        THEN bw.amount 
+        WHEN bw_out.from_account_id = ba.id AND bw_out.withdrawal_date >= ba.opening_date
+        THEN bw_out.amount 
         ELSE 0 
      END), 0)) as calculated_balance,
     -- Latest manual balance record
@@ -192,15 +203,20 @@ SELECT
         WHEN ir.bank_account_id = ba.id AND ir.income_date >= ba.opening_date
         THEN ir.amount 
         ELSE 0 
-     END), 0) - 
+     END), 0) +
+     COALESCE(SUM(CASE 
+        WHEN bw_in.to_account_id = ba.id AND bw_in.withdrawal_date >= ba.opening_date
+        THEN bw_in.amount 
+        ELSE 0 
+     END), 0) -
      COALESCE(SUM(CASE 
         WHEN e.bank_account_id = ba.id AND e.date >= ba.opening_date
         THEN e.amount 
         ELSE 0 
      END), 0) -
      COALESCE(SUM(CASE 
-        WHEN bw.from_account_id = ba.id AND bw.withdrawal_date >= ba.opening_date
-        THEN bw.amount 
+        WHEN bw_out.from_account_id = ba.id AND bw_out.withdrawal_date >= ba.opening_date
+        THEN bw_out.amount 
         ELSE 0 
      END), 0)) - 
      COALESCE((SELECT manual_balance FROM bank_balance_records 
@@ -209,7 +225,8 @@ SELECT
 FROM bank_accounts ba
 LEFT JOIN income_records ir ON ir.bank_account_id = ba.id
 LEFT JOIN expenses e ON e.bank_account_id = ba.id
-LEFT JOIN bank_withdrawals bw ON bw.from_account_id = ba.id
+LEFT JOIN bank_withdrawals bw_out ON bw_out.from_account_id = ba.id
+LEFT JOIN bank_withdrawals bw_in ON bw_in.to_account_id = ba.id
 GROUP BY ba.id, ba.account_name, ba.bank_name, ba.account_number, ba.currency,
          ba.opening_balance, ba.opening_date, ba.status;
 

@@ -15,6 +15,8 @@ interface BankAccount {
   status: string
   total_income: number
   total_expenses: number
+  total_withdrawals: number
+  total_transfers_in: number
   calculated_balance: number
   latest_manual_balance: number | null
   last_reconciled_date: string | null
@@ -403,7 +405,7 @@ export default function BankAccountsPage() {
               </div>
 
               {/* Balance Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-xs font-medium text-gray-600 uppercase">Opening Balance</p>
                   <p className="text-2xl font-bold text-gray-900 mt-2">{account.opening_balance.toLocaleString()} {account.currency}</p>
@@ -415,6 +417,13 @@ export default function BankAccountsPage() {
                   </div>
                   <p className="text-2xl font-bold text-green-700 mt-2">+{account.total_income.toLocaleString()} {account.currency}</p>
                 </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <p className="text-xs font-medium text-blue-600 uppercase">Transfers In</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-700 mt-2">+{account.total_transfers_in.toLocaleString()} {account.currency}</p>
+                </div>
                 <div className="bg-red-50 rounded-lg p-4">
                   <div className="flex items-center gap-2">
                     <TrendingDown className="h-4 w-4 text-red-600" />
@@ -422,10 +431,20 @@ export default function BankAccountsPage() {
                   </div>
                   <p className="text-2xl font-bold text-red-700 mt-2">-{account.total_expenses.toLocaleString()} {account.currency}</p>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-xs font-medium text-blue-600 uppercase">Calculated Balance</p>
-                  <p className="text-2xl font-bold text-blue-900 mt-2">{account.calculated_balance.toLocaleString()} {account.currency}</p>
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-orange-600" />
+                    <p className="text-xs font-medium text-orange-600 uppercase">Withdrawals</p>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-700 mt-2">-{account.total_withdrawals.toLocaleString()} {account.currency}</p>
                 </div>
+              </div>
+
+              {/* Calculated Balance Display */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-200">
+                <p className="text-xs font-medium text-blue-600 uppercase">Current Calculated Balance</p>
+                <p className="text-3xl font-bold text-blue-900 mt-1">{account.calculated_balance.toLocaleString()} {account.currency}</p>
+                <p className="text-xs text-blue-700 mt-1">= Opening + Income + Transfers In - Expenses - Withdrawals</p>
               </div>
 
               {/* Reconciliation Section */}

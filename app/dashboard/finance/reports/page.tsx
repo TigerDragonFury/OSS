@@ -24,11 +24,13 @@ export default function ReportsPage() {
   const [formStartDate, setFormStartDate] = useState('')
   const [formEndDate, setFormEndDate] = useState('')
   const [formFilterType, setFormFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  const [formExpenseCategory, setFormExpenseCategory] = useState<string>('all')
   
   // Applied filter states (what's being used for display)
   const [appliedStartDate, setAppliedStartDate] = useState('')
   const [appliedEndDate, setAppliedEndDate] = useState('')
   const [appliedFilterType, setAppliedFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  const [appliedExpenseCategory, setAppliedExpenseCategory] = useState<string>('all')
   
   const [showFilters, setShowFilters] = useState(false)
 
@@ -115,6 +117,7 @@ export default function ReportsPage() {
     setAppliedStartDate(formStartDate)
     setAppliedEndDate(formEndDate)
     setAppliedFilterType(formFilterType)
+    setAppliedExpenseCategory(formExpenseCategory)
     setCurrentPage(1)
     fetchData(formStartDate, formEndDate)
     setShowFilters(false)
@@ -130,9 +133,11 @@ export default function ReportsPage() {
     setFormStartDate(defaultStartDate)
     setFormEndDate(defaultEndDate)
     setFormFilterType('all')
+    setFormExpenseCategory('all')
     setAppliedStartDate(defaultStartDate)
     setAppliedEndDate(defaultEndDate)
     setAppliedFilterType('all')
+    setAppliedExpenseCategory('all')
     setCurrentPage(1)
     fetchData(defaultStartDate, defaultEndDate)
   }
@@ -168,12 +173,46 @@ export default function ReportsPage() {
     }))
   ]
 
-  // Apply transaction type filter only
+  // Apply transaction type filter
   if (appliedFilterType !== 'all') {
     cashflowEvents = cashflowEvents.filter(event => {
       if (appliedFilterType === 'income' && event.direction !== 'in') return false
       if (appliedFilterType === 'expense' && event.direction !== 'out') return false
       return true
+    })
+  }
+
+  // Apply expense category filter
+  if (appliedExpenseCategory !== 'all') {
+    cashflowEvents = cashflowEvents.filter(event => {
+      if (event.direction !== 'out') return true // Keep all income
+      const expenseRecord = data.cashOut.find((e: any) => e.id === event.id)
+      if (!expenseRecord) return false
+      
+      const category = (expenseRecord.category || '').toLowerCase()
+      const expenseType = (expenseRecord.expense_type || '').toLowerCase()
+      
+      switch(appliedExpenseCategory) {
+        case 'vessel':
+          return category.includes('vessel') || expenseType.includes('vessel') || 
+                 category.includes('ship') || expenseType.includes('ship')
+        case 'land':
+          return category.includes('land') || expenseType.includes('land') || 
+                 category.includes('scrap') || expenseType.includes('scrap')
+        case 'salary':
+          return category.includes('salary') || expenseType.includes('salary') ||
+                 category.includes('payroll') || expenseType.includes('payroll') ||
+                 category.includes('wage') || expenseType.includes('wage')
+        case 'operational':
+          return category.includes('operational') || expenseType.includes('operational') ||
+                 category.includes('overhead') || expenseType.includes('overhead') ||
+                 category.includes('admin') || expenseType.includes('admin')
+        case 'equipment':
+          return category.includes('equipment') || expenseType.includes('equipment') ||
+                 category.includes('machinery') || expenseType.includes('machinery')
+        default:
+          return true
+      }
     })
   }
 
@@ -334,7 +373,13 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Cashflow Analysis</h2>
-              <p className="text-sm text-gray-600 mt-1">Filtered by: {appliedStartDate} to {appliedEndDate} | {appliedFilterType === 'all' ? 'All Transactions' : appliedFilterType === 'income' ? 'Income Only' : 'Expenses Only'}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Filtered by: {appliedStartDate} to {appliedEndDate} | 
+                {appliedFilterType === 'all' ? 'All Transactions' : appliedFilterType === 'income' ? 'Income Only' : 'Expenses Only'}
+                {appliedExpenseCategory !== 'all' && appliedFilterType !== 'income' && (
+                  <span className="ml-1">| Category: {appliedExpenseCategory.charAt(0).toUpperCase() + appliedExpenseCategory.slice(1)}</span>
+                )}
+              </p>
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -348,7 +393,7 @@ export default function ReportsPage() {
           {/* Filter Panel */}
           {showFilters && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                   <input
@@ -377,6 +422,22 @@ export default function ReportsPage() {
                     <option value="all">All Transactions</option>
                     <option value="income">Income Only</option>
                     <option value="expense">Expenses Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expense Category</label>
+                  <select
+                    value={formExpenseCategory}
+                    onChange={(e) => setFormExpenseCategory(e.target.value)}
+                    disabled={formFilterType === 'income'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="vessel">Vessel/Ship Related</option>
+                    <option value="land">Land/Scrap Related</option>
+                    <option value="salary">Salary/Payroll</option>
+                    <option value="operational">Operational/Overhead</option>
+                    <option value="equipment">Equipment/Machinery</option>
                   </select>
                 </div>
               </div>

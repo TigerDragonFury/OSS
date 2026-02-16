@@ -195,7 +195,12 @@ export default function ReportsPage() {
       switch(appliedExpenseCategory) {
         case 'vessel':
           return category.includes('vessel') || expenseType.includes('vessel') || 
-                 category.includes('ship') || expenseType.includes('ship')
+                 category.includes('ship') || expenseType.includes('ship') ||
+                 category.includes('overhaul') || expenseType.includes('overhaul')
+        case 'overhaul':
+          return category.includes('overhaul') || expenseType.includes('overhaul') ||
+                 category.includes('repair') || expenseType.includes('repair') ||
+                 category.includes('maintenance') || expenseType.includes('maintenance')
         case 'land':
           return category.includes('land') || expenseType.includes('land') || 
                  category.includes('scrap') || expenseType.includes('scrap')
@@ -434,6 +439,7 @@ export default function ReportsPage() {
                   >
                     <option value="all">All Categories</option>
                     <option value="vessel">Vessel/Ship Related</option>
+                    <option value="overhaul">Overhaul/Repair/Maintenance</option>
                     <option value="land">Land/Scrap Related</option>
                     <option value="salary">Salary/Payroll</option>
                     <option value="operational">Operational/Overhead</option>

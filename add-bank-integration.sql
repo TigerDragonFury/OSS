@@ -23,8 +23,15 @@ BEGIN
         WHERE table_name = 'salary_payments' AND column_name = 'bank_account_id'
     ) THEN
         ALTER TABLE salary_payments ADD COLUMN bank_account_id UUID REFERENCES bank_accounts(id);
+        RAISE NOTICE 'Added bank_account_id to salary_payments';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'salary_payments' AND column_name = 'payment_method'
+    ) THEN
         ALTER TABLE salary_payments ADD COLUMN payment_method VARCHAR(50) DEFAULT 'bank_transfer';
-        RAISE NOTICE 'Added bank_account_id and payment_method to salary_payments';
+        RAISE NOTICE 'Added payment_method to salary_payments';
     END IF;
 END $$;
 
@@ -48,8 +55,15 @@ BEGIN
         WHERE table_name = 'vessel_rentals' AND column_name = 'bank_account_id'
     ) THEN
         ALTER TABLE vessel_rentals ADD COLUMN bank_account_id UUID REFERENCES bank_accounts(id);
+        RAISE NOTICE 'Added bank_account_id to vessel_rentals';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vessel_rentals' AND column_name = 'payment_method'
+    ) THEN
         ALTER TABLE vessel_rentals ADD COLUMN payment_method VARCHAR(50) DEFAULT 'bank_transfer';
-        RAISE NOTICE 'Added bank_account_id and payment_method to vessel_rentals';
+        RAISE NOTICE 'Added payment_method to vessel_rentals';
     END IF;
 END $$;
 
@@ -73,8 +87,15 @@ BEGIN
         WHERE table_name = 'land_scrap_sales' AND column_name = 'bank_account_id'
     ) THEN
         ALTER TABLE land_scrap_sales ADD COLUMN bank_account_id UUID REFERENCES bank_accounts(id);
+        RAISE NOTICE 'Added bank_account_id to land_scrap_sales';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'land_scrap_sales' AND column_name = 'payment_method'
+    ) THEN
         ALTER TABLE land_scrap_sales ADD COLUMN payment_method VARCHAR(50) DEFAULT 'bank_transfer';
-        RAISE NOTICE 'Added bank_account_id and payment_method to land_scrap_sales';
+        RAISE NOTICE 'Added payment_method to land_scrap_sales';
     END IF;
 END $$;
 

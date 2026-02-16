@@ -41,16 +41,15 @@ const MIGRATION_FILES = [
   'supabase-schema.sql',
   'auth-schema.sql',
   'warehouse-schema.sql',
+  'inventory-usage-schema.sql',
+  'inventory-ledger.sql',
   'vessel-operations-schema.sql', // Operations tables (maintenance, crew, tasks, logs, documents, etc.)
-  'inventory-usage-schema.sql', // Inventory usage tracking and vessel equipment
   'fix-rls-policies.sql',
   'sync-completed-expenses.sql',
   'auto-update-total-spent.sql',
   'add-payment-method-to-expenses.sql',
   'fix-land-scrap-sales-schema.sql',
-  'update-companies-types.sql',
-  'owner-equity-schema.sql', // Owner equity tracking - who paid what
-  'owner-partial-payments-schema.sql' // Allow split payments between owners
+  'update-companies-types.sql'
 ];
 
 // Read environment variables or prompt for connection

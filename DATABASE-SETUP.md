@@ -20,7 +20,11 @@ To make your OSS system fully functional, you need to run the SQL scripts in you
 1. If you need enhanced inventory features
 2. Copy and run the contents of `warehouse-schema.sql`
 
-### Step 4: Fix RLS Policies
+### Step 4: Run Inventory Usage + Ledger (Optional)
+1. Copy and run the contents of `inventory-usage-schema.sql`
+2. Copy and run the contents of `inventory-ledger.sql`
+
+### Step 5: Fix RLS Policies
 1. **IMPORTANT**: Run this to fix the 404 and 400 errors
 2. Copy and run the contents of `fix-rls-policies.sql`
 3. This disables Row Level Security for testing

@@ -15,6 +15,8 @@ This guide explains how to run database migrations automatically or manually.
    - `supabase-schema.sql` - Main database schema
    - `auth-schema.sql` - Authentication setup
    - `warehouse-schema.sql` - Warehouse tables
+   - `inventory-usage-schema.sql` - Inventory usage + equipment tracking
+   - `inventory-ledger.sql` - Item-level inventory ledger
    - `fix-rls-policies.sql` - Row-level security policies
    - `sync-completed-expenses.sql` - Backfill expenses
    - `auto-update-total-spent.sql` - Auto-update trigger

@@ -60,6 +60,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_decrease_inventory_on_usage ON inventory_usage;
 CREATE TRIGGER trigger_decrease_inventory_on_usage
     BEFORE INSERT ON inventory_usage
     FOR EACH ROW
@@ -178,6 +179,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_equipment_on_replacement ON equipment_replacements;
 CREATE TRIGGER trigger_update_equipment_on_replacement
     BEFORE INSERT ON equipment_replacements
     FOR EACH ROW

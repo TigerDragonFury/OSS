@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, DollarSign, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function LandsPage() {
   const [isAdding, setIsAdding] = useState(false)
@@ -218,47 +217,11 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
     estimated_tonnage: land?.estimated_tonnage || '',
     remaining_tonnage: land?.remaining_tonnage || land?.estimated_tonnage || '',
     status: land?.status || 'active',
-    notes: land?.notes || '',
-    paid_by_owner_id: land?.paid_by_owner_id || ''
+    notes: land?.notes || ''
   })
-  
-  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
-  
-  // Fetch owners
-  const { data: owners = [] } = useQuery({
-    queryKey: ['owners'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('id, name')
-        .eq('status', 'active')
-        .order('name')
-      if (error) throw error
-      return data
-    }
-  })
-  
-  // Fetch existing payment splits if editing
-  const { data: existingSplits = [] } = useQuery({
-    queryKey: ['payment_splits', land?.id],
-    enabled: !!land?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payment_splits')
-        .select('*, owners(name)')
-        .eq('land_purchase_id', land.id)
-      if (error) throw error
-      return data.map(split => ({
-        owner_id: split.owner_id,
-        owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid,
-        source_of_funds: split.source_of_funds || 'personal_savings'
-      }))
-    }
-  })
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -281,35 +244,10 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
         landId = result[0].id
       }
       
-      // Handle payment splits if provided
-      if (data.paymentSplits && data.paymentSplits.length > 0 && landId) {
-        // Delete existing splits
-        await supabase
-          .from('payment_splits')
-          .delete()
-          .eq('land_purchase_id', landId)
-        
-        // Insert new splits
-        const splitsData = data.paymentSplits.map((split: any) => ({
-          land_purchase_id: landId,
-          owner_id: split.owner_id,
-          amount_paid: split.amount_paid,
-          payment_date: data.landData.purchase_date || new Date().toISOString().split('T')[0],
-          source_of_funds: split.source_of_funds || 'personal_savings'
-        }))
-        
-        const { error: splitsError } = await supabase
-          .from('payment_splits')
-          .insert(splitsData)
-        
-        if (splitsError) throw splitsError
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['land_purchases'] })
       queryClient.invalidateQueries({ queryKey: ['land_financial_summary'] })
-      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
-      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     },
     onError: (error: any) => {
@@ -327,13 +265,11 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
       remaining_tonnage: formData.remaining_tonnage ? parseFloat(formData.remaining_tonnage) : null,
       purchase_date: formData.purchase_date || null,
       location: formData.location || null,
-      notes: formData.notes || null,
-      paid_by_owner_id: formData.paid_by_owner_id || null
+      notes: formData.notes || null
     }
     
     mutation.mutate({
-      landData: cleanData,
-      paymentSplits: paymentSplits.length > 0 ? paymentSplits : null
+      landData: cleanData
     })
   }
 
@@ -388,41 +324,6 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
-            
-            {/* Payment Information Section */}
-            <div className="border-t border-gray-200 pt-4 mt-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Information</h3>
-              
-              {/* Simple single owner payment */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By (Single Owner) - Optional
-                </label>
-                <select
-                  value={formData.paid_by_owner_id}
-                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Select Owner (if single payer) --</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>{owner.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Use this if one owner paid the full amount
-                </p>
-              </div>
-
-              {/* Split payments between multiple owners */}
-              {formData.purchase_price && parseFloat(formData.purchase_price) > 0 && (
-                <PaymentSplitsInput
-                  owners={owners}
-                  totalAmount={parseFloat(formData.purchase_price)}
-                  existingSplits={existingSplits}
-                  onChange={setPaymentSplits}
-                />
-              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4 mt-4">

@@ -3,12 +3,13 @@
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, Package, AlertTriangle, Search, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Package, AlertTriangle, Search, Edit2, Trash2, ClipboardList } from 'lucide-react'
 import Pagination from '@/components/Pagination'
 
 export default function InventoryPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
+  const [ledgerItem, setLedgerItem] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterWarehouse, setFilterWarehouse] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -61,6 +62,21 @@ export default function InventoryPage() {
         .from('vessels')
         .select('id, name')
         .order('name')
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: ledgerEntries, isLoading: isLedgerLoading } = useQuery({
+    queryKey: ['inventory_ledger', ledgerItem?.id],
+    enabled: !!ledgerItem,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_ledger_view')
+        .select('*')
+        .eq('inventory_id', ledgerItem.id)
+        .order('occurred_at', { ascending: false })
+        .limit(200)
       if (error) throw error
       return data
     }
@@ -408,6 +424,13 @@ export default function InventoryPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <button
+                          onClick={() => setLedgerItem(item)}
+                          className="text-gray-600 hover:text-gray-800"
+                          title="Ledger"
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => setEditingItem(item)}
                           className="text-blue-600 hover:text-blue-800"
                           title="Edit"
@@ -460,6 +483,15 @@ export default function InventoryPage() {
           onClose={() => setIsAdding(false)} 
           warehouses={warehouses || []}
           vessels={vessels || []}
+        />
+      )}
+
+      {ledgerItem && (
+        <InventoryLedgerModal
+          item={ledgerItem}
+          entries={ledgerEntries || []}
+          isLoading={isLedgerLoading}
+          onClose={() => setLedgerItem(null)}
         />
       )}
     </div>
@@ -783,6 +815,114 @@ function InventoryForm({ onClose, warehouses, vessels, item }: { onClose: () => 
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InventoryLedgerModal({
+  item,
+  entries,
+  isLoading,
+  onClose
+}: {
+  item: any
+  entries: any[]
+  isLoading: boolean
+  onClose: () => void
+}) {
+  const formatQuantity = (value: any) => {
+    if (value === null || value === undefined) {
+      return '-'
+    }
+    return Number(value).toLocaleString()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Inventory Ledger</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {item.equipment_name}{item.item_code ? ` (${item.item_code})` : ''}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-gray-700 hover:bg-gray-100 rounded-lg"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs text-gray-500">Current Quantity</p>
+              <p className="text-xl font-semibold text-gray-900 mt-1">{Number(item.quantity || 0).toLocaleString()} {item.unit || 'pcs'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs text-gray-500">Category</p>
+              <p className="text-xl font-semibold text-gray-900 mt-1">{item.category || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs text-gray-500">Status</p>
+              <p className="text-xl font-semibold text-gray-900 mt-1">{item.status?.replace('_', ' ') || 'N/A'}</p>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">No ledger entries yet.</div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">In</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Out</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {entries.map((entry: any) => (
+                    <tr key={entry.id} className="text-sm text-gray-700">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {entry.occurred_at ? new Date(entry.occurred_at).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {entry.movement_type ? entry.movement_type.replace(/_/g, ' ') : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-green-700">
+                        {formatQuantity(entry.quantity_in)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-700">
+                        {formatQuantity(entry.quantity_out)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {formatQuantity(entry.running_balance)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {entry.warehouse_name || entry.vessel_name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
+                        {entry.notes || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

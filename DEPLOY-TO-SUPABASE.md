@@ -31,7 +31,13 @@ Copy and paste each file's contents into the SQL Editor and click **Run** (or pr
 #### 4️⃣ **warehouse-schema.sql** (Warehouse features)
    - Contains: warehouse inventory tables
 
-#### 5️⃣ **fix-rls-policies.sql** (Security fixes)
+#### 5️⃣ **inventory-usage-schema.sql** (Inventory usage + equipment)
+   - Contains: inventory usage and equipment replacement tracking
+
+#### 6️⃣ **inventory-ledger.sql** (Inventory ledger)
+   - Contains: item-level stock ledger + running balance view
+
+#### 7️⃣ **fix-rls-policies.sql** (Security fixes)
    - Disables RLS temporarily for development
    - Run this AFTER the above schemas
 

@@ -157,11 +157,17 @@ const [showReplace, setShowReplace] = useState(false)
    - Adds automatic triggers for inventory deduction
    - Creates reporting views
 
+3. **inventory-ledger.sql** (NEW - must run)
+  - Creates `inventory_ledger` table
+  - Logs usage, replacements, and movements
+  - Adds `inventory_ledger_view` with running balance
+
 ### Important Views Created:
 
 - `inventory_usage_by_vessel` - Summary of parts used per vessel
 - `equipment_replacement_history` - Complete replacement history
 - `low_stock_inventory` - Alert for items needing reorder
+- `inventory_ledger_view` - Item-level ledger with running balance
 
 ---
 
@@ -354,6 +360,7 @@ const { data: lowStock } = useQuery({
 1. **Run SQL Migration:**
    ```
    Run inventory-usage-schema.sql in Supabase SQL Editor
+  Run inventory-ledger.sql in Supabase SQL Editor
    ```
 
 2. **Update RLS Policies:**
@@ -361,6 +368,7 @@ const { data: lowStock } = useQuery({
    ALTER TABLE inventory_usage DISABLE ROW LEVEL SECURITY;
    ALTER TABLE vessel_equipment DISABLE ROW LEVEL SECURITY;
    ALTER TABLE equipment_replacements DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE inventory_ledger DISABLE ROW LEVEL SECURITY;
    ```
 
 3. **Add Buttons to Pages:**

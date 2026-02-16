@@ -1,22 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import { DollarSign, TrendingUp, TrendingDown, Ship, LandPlot } from 'lucide-react'
+import { DollarSign, Ship, LandPlot, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 
 async function getReportsData() {
   const supabase = await createClient()
-  
-  // Get parent companies first
-  const { data: parentCompanies } = await supabase
-    .from('companies')
-    .select('id')
-    .eq('type', 'parent')
-  
-  const parentCompanyIds = parentCompanies?.map(c => c.id) || []
-  
-  // Get profit/loss summary (only parent companies)
-  const { data: profitLoss } = await supabase
-    .from('profit_loss_summary')
-    .select('*')
-    .in('company_id', parentCompanyIds)
+  const today = new Date()
+  const last30Days = new Date(today)
+  last30Days.setDate(today.getDate() - 30)
+  const startDate = last30Days.toISOString().split('T')[0]
   
   // Get vessel financial summary
   const { data: vesselFinancials } = await supabase
@@ -43,22 +33,69 @@ async function getReportsData() {
     .eq('status', 'paid')
     .order('date', { ascending: false })
     .limit(10)
+
+  // Cashflow (last 30 days)
+  const { data: cashIn } = await supabase
+    .from('income_records')
+    .select('id, income_date, amount, description, source_type')
+    .gte('income_date', startDate)
+    .order('income_date', { ascending: false })
+
+  const { data: cashOut } = await supabase
+    .from('expenses')
+    .select('id, date, amount, description, expense_type, category')
+    .eq('status', 'paid')
+    .gte('date', startDate)
+    .order('date', { ascending: false })
+
+  // All-time cash in/out totals
+  const { data: cashInAll } = await supabase
+    .from('income_records')
+    .select('amount')
+
+  const { data: cashOutAll } = await supabase
+    .from('expenses')
+    .select('amount')
+    .eq('status', 'paid')
   
   return {
-    profitLoss: profitLoss || [],
     vesselFinancials: vesselFinancials || [],
     landFinancials: landFinancials || [],
     expenses: expenses || [],
-    invoices: invoices || []
+    invoices: invoices || [],
+    cashIn: cashIn || [],
+    cashOut: cashOut || [],
+    cashInAll: cashInAll || [],
+    cashOutAll: cashOutAll || [],
+    cashStartDate: startDate
   }
 }
 
 export default async function ReportsPage() {
   const data = await getReportsData()
   
-  const totalIncome = data.profitLoss.reduce((sum, company) => sum + (company.total_income || 0), 0)
-  const totalExpenses = data.profitLoss.reduce((sum, company) => sum + (company.total_expenses || 0), 0)
+  const totalIncome = data.cashInAll.reduce((sum, entry) => sum + (entry.amount || 0), 0)
+  const totalExpenses = data.cashOutAll.reduce((sum, entry) => sum + (entry.amount || 0), 0)
   const netProfit = totalIncome - totalExpenses
+  const cashInTotal = data.cashIn.reduce((sum, entry) => sum + (entry.amount || 0), 0)
+  const cashOutTotal = data.cashOut.reduce((sum, entry) => sum + (entry.amount || 0), 0)
+  const cashNet = cashInTotal - cashOutTotal
+  const cashflowEvents = [
+    ...data.cashIn.map((entry) => ({
+      id: entry.id,
+      date: entry.income_date,
+      amount: entry.amount || 0,
+      description: entry.description || entry.source_type || 'Income',
+      direction: 'in'
+    })),
+    ...data.cashOut.map((entry) => ({
+      id: entry.id,
+      date: entry.date,
+      amount: entry.amount || 0,
+      description: entry.description || entry.expense_type || entry.category || 'Expense',
+      direction: 'out'
+    }))
+  ].sort((a, b) => (a.date || '').localeCompare(b.date || '')).reverse()
 
   return (
     <div className="space-y-6">
@@ -72,13 +109,13 @@ export default async function ReportsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Income</p>
+              <p className="text-sm font-medium text-gray-600">All-Time Cash In</p>
               <p className="text-3xl font-bold text-green-600 mt-2">
                 {totalIncome.toLocaleString()} AED
               </p>
             </div>
             <div className="bg-green-100 rounded-full p-3">
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <ArrowDownCircle className="h-8 w-8 text-green-600" />
             </div>
           </div>
         </div>
@@ -86,13 +123,13 @@ export default async function ReportsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+              <p className="text-sm font-medium text-gray-600">All-Time Cash Out</p>
               <p className="text-3xl font-bold text-red-600 mt-2">
                 {totalExpenses.toLocaleString()} AED
               </p>
             </div>
             <div className="bg-red-100 rounded-full p-3">
-              <TrendingDown className="h-8 w-8 text-red-600" />
+              <ArrowUpCircle className="h-8 w-8 text-red-600" />
             </div>
           </div>
         </div>
@@ -100,7 +137,7 @@ export default async function ReportsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Net Profit/Loss</p>
+              <p className="text-sm font-medium text-gray-600">All-Time Net Profit</p>
               <p className={`text-3xl font-bold mt-2 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {netProfit >= 0 ? '+' : ''}{netProfit.toLocaleString()} AED
               </p>
@@ -112,39 +149,83 @@ export default async function ReportsPage() {
         </div>
       </div>
 
-      {/* Company Breakdown */}
+      {/* Cashflow Summary */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Company Breakdown</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Cashflow (Last 30 Days)</h2>
+          <p className="text-sm text-gray-600 mt-1">From {data.cashStartDate} to today</p>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {data.profitLoss.map((company) => (
-              <div key={company.company_id} className="border border-gray-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">{company.company_name}</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Income</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {company.total_income?.toLocaleString() || 0} AED
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Expenses</p>
-                    <p className="text-lg font-semibold text-red-600">
-                      {company.total_expenses?.toLocaleString() || 0} AED
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Net Profit</p>
-                    <p className={`text-lg font-bold ${company.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {company.net_profit >= 0 ? '+' : ''}{company.net_profit?.toLocaleString() || 0} AED
-                    </p>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-green-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">Cash In</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">{cashInTotal.toLocaleString()} AED</p>
                 </div>
+                <ArrowDownCircle className="h-8 w-8 text-green-600" />
               </div>
-            ))}
+            </div>
+            <div className="bg-red-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-700">Cash Out</p>
+                  <p className="text-2xl font-bold text-red-700 mt-1">{cashOutTotal.toLocaleString()} AED</p>
+                </div>
+                <ArrowUpCircle className="h-8 w-8 text-red-600" />
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Net Cash</p>
+                  <p className={`text-2xl font-bold mt-1 ${cashNet >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {cashNet >= 0 ? '+' : ''}{cashNet.toLocaleString()} AED
+                  </p>
+                </div>
+                <DollarSign className="h-8 w-8 text-gray-600" />
+              </div>
+            </div>
           </div>
+
+          {cashflowEvents.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No cashflow activity in the last 30 days</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {cashflowEvents.slice(0, 20).map((entry) => (
+                    <tr key={`${entry.direction}-${entry.id}`}>
+                      <td className="px-4 py-3 text-sm text-gray-700">{entry.date || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{entry.description}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          entry.direction === 'in'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {entry.direction === 'in' ? 'Cash In' : 'Cash Out'}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 text-sm text-right font-semibold ${
+                        entry.direction === 'in' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {entry.direction === 'in' ? '+' : '-'}{entry.amount.toLocaleString()} AED
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

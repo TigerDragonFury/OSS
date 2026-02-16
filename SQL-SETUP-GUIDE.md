@@ -72,7 +72,22 @@ Run `warehouse-schema.sql` third - adds warehouse management.
 - Warehouse B (Sharjah)
 - Port Storage 1 (Abu Dhabi)
 
-### Step 4: Disable Row Level Security (For Testing)
+### Step 4: Inventory Usage + Ledger
+Run `inventory-usage-schema.sql` and `inventory-ledger.sql` to enable item-level usage and full stock movement history.
+
+```sql
+-- Copy and paste the entire contents of inventory-usage-schema.sql
+-- into Supabase SQL Editor and execute
+
+-- Then run inventory-ledger.sql
+```
+
+**Creates:**
+- Inventory usage tracking
+- Equipment replacement tracking
+- Inventory ledger with running balance view
+
+### Step 5: Disable Row Level Security (For Testing)
 Run `fix-rls-policies.sql` last - disables RLS for easier testing.
 
 ```sql
@@ -143,7 +158,7 @@ Get these from: Supabase Dashboard → Settings → API
 
 ## 🎯 Next Steps
 
-1. ✅ Run all 4 SQL scripts in order
+1. ✅ Run all 6 SQL scripts in order
 2. ✅ Verify tables created successfully
 3. ✅ Update environment variables
 4. ✅ Test login with default users
@@ -165,7 +180,9 @@ Get these from: Supabase Dashboard → Settings → API
   1. supabase-schema.sql
   2. auth-schema.sql
   3. warehouse-schema.sql
-  4. fix-rls-policies.sql
+  4. inventory-usage-schema.sql
+  5. inventory-ledger.sql
+  6. fix-rls-policies.sql
 
 ### "Function already exists" error
 - Functions use `CREATE OR REPLACE` - this is normal and safe

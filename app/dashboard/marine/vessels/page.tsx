@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Edit, Trash2, DollarSign } from 'lucide-react'
 import Link from 'next/link'
-import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function VesselsPage() {
   const [isAddingVessel, setIsAddingVessel] = useState(false)
@@ -233,47 +232,11 @@ function VesselForm({ onClose, vessel }: { onClose: () => void, vessel?: any }) 
     tonnage: vessel?.tonnage || '',
     year_built: vessel?.year_built || '',
     classification_status: vessel?.classification_status || '',
-    notes: vessel?.notes || '',
-    paid_by_owner_id: vessel?.paid_by_owner_id || ''
+    notes: vessel?.notes || ''
   })
-  
-  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
-  
-  // Fetch owners
-  const { data: owners = [] } = useQuery({
-    queryKey: ['owners'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('id, name')
-        .eq('status', 'active')
-        .order('name')
-      if (error) throw error
-      return data
-    }
-  })
-  
-  // Fetch existing payment splits if editing
-  const { data: existingSplits = [] } = useQuery({
-    queryKey: ['payment_splits', vessel?.id],
-    enabled: !!vessel?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payment_splits')
-        .select('*, owners(name)')
-        .eq('vessel_id', vessel.id)
-      if (error) throw error
-      return data.map(split => ({
-        owner_id: split.owner_id,
-        owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid,
-        source_of_funds: split.source_of_funds || 'personal_savings'
-      }))
-    }
-  })
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -304,39 +267,11 @@ function VesselForm({ onClose, vessel }: { onClose: () => void, vessel?: any }) 
         console.log('Insert successful:', result)
       }
       
-      // Handle payment splits if provided
-      if (data.paymentSplits && data.paymentSplits.length > 0 && vesselId) {
-        // Delete existing splits for this vessel
-        await supabase
-          .from('payment_splits')
-          .delete()
-          .eq('vessel_id', vesselId)
-        
-        // Insert new splits
-        const splitsData = data.paymentSplits.map((split: any) => ({
-          vessel_id: vesselId,
-          owner_id: split.owner_id,
-          amount_paid: split.amount_paid,
-          payment_date: data.vesselData.purchase_date || new Date().toISOString().split('T')[0],
-          source_of_funds: split.source_of_funds || 'personal_savings'
-        }))
-        
-        const { error: splitsError } = await supabase
-          .from('payment_splits')
-          .insert(splitsData)
-        
-        if (splitsError) {
-          console.error('Payment splits error:', splitsError)
-          throw splitsError
-        }
-      }
     },
     onSuccess: () => {
       console.log('Mutation successful')
       queryClient.invalidateQueries({ queryKey: ['vessels'] })
       queryClient.invalidateQueries({ queryKey: ['vessel_financial_summary'] })
-      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
-      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     },
     onError: (error: any) => {
@@ -358,13 +293,11 @@ function VesselForm({ onClose, vessel }: { onClose: () => void, vessel?: any }) 
       vessel_type: formData.vessel_type || null,
       current_location: formData.current_location || null,
       classification_status: formData.classification_status || null,
-      notes: formData.notes || null,
-      paid_by_owner_id: formData.paid_by_owner_id || null
+      notes: formData.notes || null
     }
     
     mutation.mutate({
-      vesselData: cleanData,
-      paymentSplits: paymentSplits.length > 0 ? paymentSplits : null
+      vesselData: cleanData
     })
   }
 
@@ -427,41 +360,6 @@ function VesselForm({ onClose, vessel }: { onClose: () => void, vessel?: any }) 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
-
-            {/* Payment Information Section */}
-            <div className="border-t border-gray-200 pt-4 mt-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Information</h3>
-              
-              {/* Simple single owner payment (for backward compatibility) */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By (Single Owner) - Optional
-                </label>
-                <select
-                  value={formData.paid_by_owner_id}
-                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Select Owner (if single payer) --</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>{owner.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Use this if one owner paid the full amount
-                </p>
-              </div>
-
-              {/* Split payments between multiple owners */}
-              {formData.purchase_price && parseFloat(formData.purchase_price) > 0 && (
-                <PaymentSplitsInput
-                  owners={owners}
-                  totalAmount={parseFloat(formData.purchase_price)}
-                  existingSplits={existingSplits}
-                  onChange={setPaymentSplits}
-                />
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4 mt-4">

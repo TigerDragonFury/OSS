@@ -8,7 +8,6 @@ import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import UseInventoryModal from '@/components/UseInventoryModal'
 import ReplaceEquipmentModal from '@/components/ReplaceEquipmentModal'
-import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function OverhaulsPage() {
   const [isAdding, setIsAdding] = useState(false)
@@ -20,7 +19,6 @@ export default function OverhaulsPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
-
   const { data: projects, isLoading } = useQuery({
     queryKey: ['vessel_overhaul_projects'],
     queryFn: async () => {
@@ -87,29 +85,6 @@ export default function OverhaulsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Overhaul Projects</h1>
-          <p className="text-gray-600 mt-1">Manage vessel overhaul and repair projects</p>
-        </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          New Project
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {paginatedProjects?.map((project: any) => {
-            const progressPercent = project.total_budget > 0 
-              ? ((project.total_spent || 0) / project.total_budget) * 100 
-              : 0
-
             return (
               <div key={project.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start">
@@ -295,45 +270,11 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
     end_date: project?.end_date || '',
     status: project?.status || 'planning',
     total_budget: project?.total_budget || '',
-    notes: project?.notes || '',
-    paid_by_owner_id: project?.paid_by_owner_id || ''
+    notes: project?.notes || ''
   })
-
-  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
-
-  const { data: owners = [] } = useQuery({
-    queryKey: ['owners'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('id, name')
-        .eq('status', 'active')
-        .order('name')
-      if (error) throw error
-      return data || []
-    }
-  })
-
-  const { data: existingSplits = [] } = useQuery({
-    queryKey: ['payment_splits', project?.id],
-    enabled: !!project?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payment_splits')
-        .select('*, owners(name)')
-        .eq('overhaul_project_id', project.id)
-      if (error) throw error
-      return (data || []).map(split => ({
-        owner_id: split.owner_id,
-        owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid,
-        source_of_funds: split.source_of_funds || 'personal_savings'
-      }))
-    }
-  })
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -363,33 +304,9 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
         projectId = result[0].id
       }
 
-      // Handle payment splits
-      if (data.paymentSplits && data.paymentSplits.length > 0 && projectId) {
-        // Delete existing splits
-        await supabase
-          .from('payment_splits')
-          .delete()
-          .eq('overhaul_project_id', projectId)
-
-        // Insert new splits
-        const splitsData = data.paymentSplits.map((split: any) => ({
-          overhaul_project_id: projectId,
-          owner_id: split.owner_id,
-          amount_paid: split.amount_paid,
-          payment_date: data.projectData.start_date || new Date().toISOString().split('T')[0],
-          source_of_funds: split.source_of_funds || 'personal_savings'
-        }))
-
-        const { error: splitsError } = await supabase
-          .from('payment_splits')
-          .insert(splitsData)
-        if (splitsError) throw splitsError
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vessel_overhaul_projects'] })
-      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
-      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
       onClose()
     },
     onError: (error: any) => {
@@ -403,13 +320,11 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
     // Clean up formData - convert empty strings to null for UUID fields
     const cleanedData = {
       ...formData,
-      paid_by_owner_id: formData.paid_by_owner_id || null,
       vessel_id: formData.vessel_id || null
     }
     
     mutation.mutate({
-      projectData: cleanedData,
-      paymentSplits
+      projectData: cleanedData
     })
   }
 
@@ -502,49 +417,6 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-            </div>
-
-            {/* Payment Information */}
-            <div className="border-t pt-4 mt-4">
-              <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By (Single Owner)
-                </label>
-                <select
-                  value={formData.paid_by_owner_id}
-                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Select Owner (if single payer) --</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave empty if using split payments below
-                </p>
-              </div>
-
-              {formData.total_budget && parseFloat(formData.total_budget) > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Split Payments (Optional)
-                  </label>
-                  <PaymentSplitsInput
-                    owners={owners}
-                    totalAmount={parseFloat(formData.total_budget)}
-                    existingSplits={existingSplits}
-                    onChange={setPaymentSplits}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use this if multiple owners are contributing to this overhaul project budget
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">

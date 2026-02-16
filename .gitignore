@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+Book11.xlsx
+nul
 
 # debug
 npm-debug.log*

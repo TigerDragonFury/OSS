@@ -27,9 +27,7 @@ import {
   Bell,
   ChevronDown,
   Building2,
-  RefreshCw,
-  Wallet,
-  ArrowRightLeft
+  RefreshCw
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -291,14 +289,6 @@ export default function DashboardLayout({
               <Link href="/dashboard/finance/reports" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/reports') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                 <TrendingUp className="mr-3 h-5 w-5" />
                 Reports
-              </Link>
-              <Link href="/dashboard/finance/owner-equity" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/owner-equity') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Wallet className="mr-3 h-5 w-5" />
-                Owner Equity
-              </Link>
-              <Link href="/dashboard/finance/partner-transactions" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/partner-transactions') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <ArrowRightLeft className="mr-3 h-5 w-5" />
-                Partner Transactions
               </Link>
             </div>
 

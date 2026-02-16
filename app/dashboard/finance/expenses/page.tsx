@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
-import PaymentSplitsInput from '@/components/PaymentSplitsInput'
 
 export default function ExpensesPage() {
   const [isAdding, setIsAdding] = useState(false)
@@ -35,23 +34,6 @@ export default function ExpensesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (expenseId: string) => {
-      // First, delete any associated payment_splits
-      const { error: splitsError } = await supabase
-        .from('payment_splits')
-        .delete()
-        .eq('expense_id', expenseId)
-      
-      if (splitsError) throw splitsError
-
-      // Delete any associated informal_contributions
-      const { error: informalError } = await supabase
-        .from('informal_contributions')
-        .delete()
-        .eq('transaction_id', expenseId)
-      
-      if (informalError) throw informalError
-
-      // Then delete the expense
       const { error } = await supabase
         .from('expenses')
         .delete()
@@ -64,7 +46,7 @@ export default function ExpensesPage() {
   })
 
   const handleDelete = async (expense: any) => {
-    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?\n\nThis will also delete any associated payment splits and informal contributions.`)) {
+    if (confirm(`Are you sure you want to delete this expense: ${expense.description || 'this expense'}?`)) {
       try {
         await deleteMutation.mutateAsync(expense.id)
       } catch (error: any) {
@@ -210,45 +192,11 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
     date: expense?.date || new Date().toISOString().split('T')[0],
     project_type: expense?.project_type || 'general',
     description: expense?.description || '',
-    status: expense?.status || 'pending',
-    paid_by_owner_id: expense?.paid_by_owner_id || ''
+    status: expense?.status || 'pending'
   })
-
-  const [paymentSplits, setPaymentSplits] = useState<any[]>([])
 
   const queryClient = useQueryClient()
   const supabase = createClient()
-
-  const { data: owners = [] } = useQuery({
-    queryKey: ['owners'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('id, name')
-        .eq('status', 'active')
-        .order('name')
-      if (error) throw error
-      return data || []
-    }
-  })
-
-  const { data: existingSplits = [] } = useQuery({
-    queryKey: ['payment_splits', expense?.id],
-    enabled: !!expense?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payment_splits')
-        .select('*, owners(name)')
-        .eq('expense_id', expense.id)
-      if (error) throw error
-      return (data || []).map(split => ({
-        owner_id: split.owner_id,
-        owner_name: (split.owners as any)?.name,
-        amount_paid: split.amount_paid,
-        source_of_funds: split.source_of_funds || 'personal_savings'
-      }))
-    }
-  })
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -270,63 +218,9 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
         expenseId = result[0].id
       }
 
-      // Handle payment splits
-      if (data.paymentSplits && data.paymentSplits.length > 0 && expenseId) {
-        // Delete existing splits
-        await supabase
-          .from('payment_splits')
-          .delete()
-          .eq('expense_id', expenseId)
-
-        // Delete existing informal_contributions for this expense
-        await supabase
-          .from('informal_contributions')
-          .delete()
-          .eq('transaction_id', expenseId)
-
-        // Insert new splits
-        const splitsData = data.paymentSplits.map((split: any) => ({
-          expense_id: expenseId,
-          owner_id: split.owner_id,
-          amount_paid: split.amount_paid,
-          payment_date: data.expenseData.date,
-          source_of_funds: split.source_of_funds || 'personal_savings'
-        }))
-
-        const { error: splitsError } = await supabase
-          .from('payment_splits')
-          .insert(splitsData)
-        if (splitsError) throw splitsError
-
-        // Insert corresponding informal_contributions for each split
-        const informalData = data.paymentSplits.map((split: any) => ({
-          owner_id: split.owner_id,
-          contribution_date: data.expenseData.date,
-          amount: split.amount_paid,
-          transaction_type: 'expense_payment',
-          transaction_id: expenseId,
-          source_of_funds: split.source_of_funds || 'personal_savings',
-          description: `Payment split for: ${data.expenseData.description || data.expenseData.expense_type || 'expense'}`
-        }))
-
-        const { error: informalError } = await supabase
-          .from('informal_contributions')
-          .insert(informalData)
-        if (informalError) throw informalError
-      } else if (expenseId) {
-        // If no payment splits, clear any existing informal_contributions
-        await supabase
-          .from('informal_contributions')
-          .delete()
-          .eq('transaction_id', expenseId)
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['payment_splits'] })
-      queryClient.invalidateQueries({ queryKey: ['owner_equity_summary'] })
-      queryClient.invalidateQueries({ queryKey: ['owner_account_statement'] })
-      queryClient.invalidateQueries({ queryKey: ['informal_contributions'] })
       onClose()
     }
   })
@@ -337,13 +231,11 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
     // Clean up formData - convert empty strings to null for UUID fields
     const cleanedData = {
       ...formData,
-      paid_by_owner_id: formData.paid_by_owner_id || null,
       company_id: formData.company_id || null
     }
     
     mutation.mutate({
-      expenseData: cleanedData,
-      paymentSplits
+      expenseData: cleanedData
     })
   }
 
@@ -451,49 +343,6 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
-            </div>
-
-            {/* Payment Information */}
-            <div className="border-t pt-4 mt-4">
-              <h3 className="text-lg font-semibold mb-3">Payment Information</h3>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By (Single Owner)
-                </label>
-                <select
-                  value={formData.paid_by_owner_id}
-                  onChange={(e) => setFormData({ ...formData, paid_by_owner_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Select Owner (if single payer) --</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave empty if using split payments below
-                </p>
-              </div>
-
-              {formData.amount && parseFloat(formData.amount) > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Split Payments (Optional)
-                  </label>
-                  <PaymentSplitsInput
-                    owners={owners}
-                    totalAmount={parseFloat(formData.amount)}
-                    existingSplits={existingSplits}
-                    onChange={setPaymentSplits}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use this if multiple owners are contributing to this expense
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">

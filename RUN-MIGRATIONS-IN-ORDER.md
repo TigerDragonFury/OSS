@@ -9,20 +9,22 @@ Go to: https://app.supabase.com/project/bybdoxmcyrzpavnvddfa/sql
 1. supabase-schema.sql          - Core tables with all columns
 2. auth-schema.sql              - Authentication setup
 3. warehouse-schema.sql         - Warehouse tables
-4. fix-rls-policies.sql         - Security policies
+4. inventory-usage-schema.sql   - Inventory usage + equipment tracking
+5. inventory-ledger.sql         - Item-level inventory ledger
+6. fix-rls-policies.sql         - Security policies
 ```
 
 ## Step 2: Triggers & Automation
 ```
-5. auto-update-total-spent.sql  - Auto-update project costs
+7. auto-update-total-spent.sql  - Auto-update project costs
 ```
 
 ## Step 3: Data Migrations
 ```
-6. add-payment-method-to-expenses.sql  - Add payment_method column
-7. update-companies-types.sql          - Add company categorization
-8. fix-land-scrap-sales-schema.sql     - Update scrap sales columns
-9. fix-scrap-sales-units.sql           - Convert kg to tons + auto-sync trigger
+8. add-payment-method-to-expenses.sql  - Add payment_method column
+9. update-companies-types.sql          - Add company categorization
+10. fix-land-scrap-sales-schema.sql     - Update scrap sales columns
+11. fix-scrap-sales-units.sql           - Convert kg to tons + auto-sync trigger
 ```
 
 ---

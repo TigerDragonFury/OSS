@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, DollarSign, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -42,6 +42,17 @@ export default function LandsPage() {
         .from('land_purchases')
         .select('*')
         .order('created_at', { ascending: false })
+      if (error) throw error
+      return data
+    }
+  })
+
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts_for_lands'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name')
       if (error) throw error
       return data
     }
@@ -119,6 +130,15 @@ export default function LandsPage() {
                         <p className="font-medium">{land.remaining_tonnage || 'N/A'} tons</p>
                       </div>
                     </div>
+
+                    {land.bank_account_id && bankAccounts && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-gray-600">Purchased From Account</p>
+                        <p className="text-sm font-medium text-blue-600">
+                          {bankAccounts.find((b: any) => b.account_id === land.bank_account_id)?.account_name || 'Unknown'}
+                        </p>
+                      </div>
+                    )}
 
                     {financial && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
@@ -217,11 +237,30 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
     estimated_tonnage: land?.estimated_tonnage || '',
     remaining_tonnage: land?.remaining_tonnage || land?.estimated_tonnage || '',
     status: land?.status || 'active',
+    bank_account_id: land?.bank_account_id || '',
     notes: land?.notes || ''
   })
 
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const queryClient = useQueryClient()
   const supabase = createClient()
+
+  useEffect(() => {
+    fetchBankAccounts()
+  }, [])
+
+  const fetchBankAccounts = async () => {
+    try {
+      const { data } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name, calculated_balance')
+        .eq('status', 'active')
+        .order('account_name')
+      setBankAccounts(data || [])
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error)
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -265,6 +304,7 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
       remaining_tonnage: formData.remaining_tonnage ? parseFloat(formData.remaining_tonnage) : null,
       purchase_date: formData.purchase_date || null,
       location: formData.location || null,
+      bank_account_id: formData.bank_account_id || null,
       notes: formData.notes || null
     }
     
@@ -323,6 +363,22 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
                   onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paid From Bank Account</label>
+                <select
+                  value={formData.bank_account_id}
+                  onChange={(e) => setFormData({ ...formData, bank_account_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Ship, Search, Edit2, Trash2, Calendar, DollarSign, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import Pagination from '@/components/Pagination'
 
@@ -345,11 +345,31 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
     crew_included: rental?.crew_included || false,
     fuel_included: rental?.fuel_included || false,
     insurance_included: rental?.insurance_included || false,
+    bank_account_id: rental?.bank_account_id || '',
+    payment_method: rental?.payment_method || 'bank_transfer',
     notes: rental?.notes || ''
   })
 
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const queryClient = useQueryClient()
   const supabase = createClient()
+
+  useEffect(() => {
+    fetchBankAccounts()
+  }, [])
+
+  const fetchBankAccounts = async () => {
+    try {
+      const { data } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name, calculated_balance')
+        .eq('status', 'active')
+        .order('account_name')
+      setBankAccounts(data || [])
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error)
+    }
+  }
 
   // Auto-calculate total
   const calculateTotal = () => {
@@ -371,6 +391,7 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
         deposit_amount: data.deposit_amount ? parseFloat(data.deposit_amount) : 0,
         vessel_id: data.vessel_id || null,
         customer_id: data.customer_id || null,
+        bank_account_id: data.bank_account_id || null,
         payment_status: data.payment_status || 'pending',
         status: data.status || 'pending'
       }
@@ -613,6 +634,36 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <select
+                  value={formData.payment_method}
+                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Income To Bank Account</label>
+                <select
+                  value={formData.bank_account_id}
+                  onChange={(e) => setFormData({ ...formData, bank_account_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>

@@ -129,4 +129,7 @@ VALUES
     ('Cash Reserve', 'Petty Cash', 'checking', 0, 'CASH-001')
 ON CONFLICT (account_number) DO NOTHING;
 
-RAISE NOTICE 'Bank accounts schema created successfully';
+DO $$
+BEGIN
+  RAISE NOTICE 'Bank accounts schema created successfully';
+END $$;

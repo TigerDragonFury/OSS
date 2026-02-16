@@ -85,6 +85,29 @@ export default function OverhaulsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
+          <h1 className="text-3xl font-bold text-gray-900">Overhaul Projects</h1>
+          <p className="text-gray-600 mt-1">Track vessel overhaul progress and costs</p>
+        </div>
+        <button
+          onClick={() => setIsAdding(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          New Project
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {paginatedProjects?.map((project: any) => {
+            const budget = project.total_budget || 0
+            const spent = project.total_spent || 0
+            const progressPercent = budget > 0 ? (spent / budget) * 100 : 0
+
             return (
               <div key={project.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start">
@@ -104,7 +127,7 @@ export default function OverhaulsPage() {
                         {project.status?.replace('_', ' ').toUpperCase()}
                       </span>
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mt-1">
                       Vessel: {project.vessels?.name || 'N/A'}
                     </p>
@@ -134,7 +157,7 @@ export default function OverhaulsPage() {
                         <span className="font-medium">{progressPercent.toFixed(1)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className={`h-2 rounded-full ${progressPercent > 100 ? 'bg-red-600' : progressPercent > 80 ? 'bg-yellow-500' : 'bg-green-500'}`}
                           style={{ width: `${Math.min(progressPercent, 100)}%` }}
                         ></div>
@@ -144,8 +167,7 @@ export default function OverhaulsPage() {
                     {project.notes && (
                       <p className="text-sm text-gray-600 mt-3">{project.notes}</p>
                     )}
-                    
-                    {/* Action Buttons */}
+
                     <div className="flex gap-2 mt-4 flex-wrap">
                       {project.status === 'in_progress' && (
                         <>
@@ -160,7 +182,7 @@ export default function OverhaulsPage() {
                             <Package className="h-4 w-4" />
                             Use Inventory
                           </button>
-                          
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -174,7 +196,7 @@ export default function OverhaulsPage() {
                           </button>
                         </>
                       )}
-                      
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -186,7 +208,7 @@ export default function OverhaulsPage() {
                         <Edit className="h-4 w-4" />
                         Edit
                       </button>
-                      
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -223,8 +245,7 @@ export default function OverhaulsPage() {
 
       {isAdding && <ProjectForm onClose={() => setIsAdding(false)} vessels={vessels || []} />}
       {editingProject && <ProjectForm project={editingProject} onClose={() => setEditingProject(null)} vessels={vessels || []} />}
-      
-      {/* Modals */}
+
       {selectedProject && (
         <>
           <UseInventoryModal

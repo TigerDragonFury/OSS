@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { DollarSign, Ship, LandPlot, ArrowDownCircle, ArrowUpCircle, Download, Filter, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { Pagination } from '@/components/Pagination'
+import Pagination from '@/components/Pagination'
 import * as XLSX from 'xlsx'
 
 interface CashflowEvent {
@@ -102,20 +102,20 @@ export default function ReportsPage() {
   }
   
   // Calculate totals
-  const totalIncome = data.cashInAll.reduce((sum, entry) => sum + (entry.amount || 0), 0)
-  const totalExpenses = data.cashOutAll.reduce((sum, entry) => sum + (entry.amount || 0), 0)
+  const totalIncome = data.cashInAll.reduce((sum: number, entry: any) => sum + (entry.amount || 0), 0)
+  const totalExpenses = data.cashOutAll.reduce((sum: number, entry: any) => sum + (entry.amount || 0), 0)
   const netProfit = totalIncome - totalExpenses
 
   // Build filtered cashflow events
   let cashflowEvents = [
-    ...data.cashIn.map((entry) => ({
+    ...data.cashIn.map((entry: any) => ({
       id: entry.id,
       date: entry.income_date,
       amount: entry.amount || 0,
       description: entry.description || entry.source_type || 'Income',
       direction: 'in' as const
     })),
-    ...data.cashOut.map((entry) => ({
+    ...data.cashOut.map((entry: any) => ({
       id: entry.id,
       date: entry.date,
       amount: entry.amount || 0,
@@ -497,7 +497,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {data.vesselFinancials.map((vessel) => (
+                  {data.vesselFinancials.map((vessel: any) => (
                     <tr key={vessel.id}>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{vessel.name}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -549,7 +549,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {data.landFinancials.map((land) => (
+                  {data.landFinancials.map((land: any) => (
                     <tr key={land.id}>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{land.land_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">

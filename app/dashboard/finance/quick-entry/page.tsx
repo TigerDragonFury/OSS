@@ -24,13 +24,23 @@ interface Company {
   name: string
 }
 
+interface BankAccount {
+  account_id: string
+  account_name: string
+  calculated_balance: number
+}
+
 export default function QuickTransactionsPage() {
   const [activeTab, setActiveTab] = useState<'scrap' | 'equipment' | 'expense'>('scrap')
   const [loading, setLoading] = useState(false)
 
+  // Bank accounts
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+
   // Scrap sales state
   const [lands, setLands] = useState<Land[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
+  const [selectedLand, setSelectedLand] = useState<any>(null)
   const [scrapForm, setScrapForm] = useState({
     land_id: '',
     sale_date: new Date().toISOString().split('T')[0],
@@ -40,6 +50,7 @@ export default function QuickTransactionsPage() {
     buyer_name: '',
     buyer_company_id: '',
     payment_method: 'transfer',
+    bank_account_id: '',
   })
 
   // Equipment sales state
@@ -54,6 +65,7 @@ export default function QuickTransactionsPage() {
     customer_name: '',
     customer_company_id: '',
     payment_method: 'transfer',
+    bank_account_id: '',
   })
 
   // Expense state
@@ -64,6 +76,7 @@ export default function QuickTransactionsPage() {
     date: new Date().toISOString().split('T')[0],
     vendor_name: '',
     payment_method: 'transfer',
+    bank_account_id: '',
     description: '',
   })
 
@@ -76,7 +89,7 @@ export default function QuickTransactionsPage() {
   const fetchData = async () => {
     try {
       // Fetch lands
-      const { data: landsData } = await supabase.from('land_purchases').select('id, land_name')
+      const { data: landsData } = await supabase.from('land_purchases').select('id, land_name, remaining_tonnage, scrap_tonnage_sold').order('land_name')
       setLands(landsData || [])
 
       // Fetch companies
@@ -87,12 +100,20 @@ export default function QuickTransactionsPage() {
       const { data: warehousesData } = await supabase.from('warehouses').select('id, location')
       setWarehouses(warehousesData || [])
 
-      // Fetch equipment
+      // Fetch equipment - ALL equipment, not filtered by status
       const { data: equipmentData } = await supabase
         .from('land_equipment')
         .select('id, equipment_name')
-        .eq('status', 'in_warehouse')
+        .order('equipment_name')
       setEquipmentList(equipmentData || [])
+
+      // Fetch bank accounts
+      const { data: accountsData } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name, calculated_balance')
+        .eq('status', 'active')
+        .order('account_name')
+      setBankAccounts(accountsData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
     }
@@ -115,6 +136,8 @@ export default function QuickTransactionsPage() {
           total_amount: total,
           buyer_name: scrapForm.buyer_name,
           buyer_company_id: scrapForm.buyer_company_id || null,
+          bank_account_id: scrapForm.bank_account_id || null,
+          payment_method: scrapForm.payment_method,
         }
       ])
 
@@ -131,8 +154,19 @@ export default function QuickTransactionsPage() {
           customer_company_id: scrapForm.buyer_company_id || null,
           description: `Scrap Sale: ${scrapForm.material_type} - ${scrapForm.quantity_tons} tons @ ${scrapForm.price_per_ton} AED/ton`,
           payment_method: scrapForm.payment_method,
+          bank_account_id: scrapForm.bank_account_id || null,
         }
       ])
+
+      // Update remaining tonnage on land
+      const currentLand = lands.find(l => l.id === scrapForm.land_id)
+      if (currentLand) {
+        const newRemaining = (currentLand.remaining_tonnage || 0) - parseFloat(scrapForm.quantity_tons)
+        await supabase.from('land_purchases').update({
+          remaining_tonnage: Math.max(0, newRemaining),
+          scrap_tonnage_sold: (currentLand.scrap_tonnage_sold || 0) + parseFloat(scrapForm.quantity_tons)
+        }).eq('id', scrapForm.land_id)
+      }
 
       alert('Scrap sale recorded successfully!')
       setScrapForm({
@@ -144,7 +178,9 @@ export default function QuickTransactionsPage() {
         buyer_name: '',
         buyer_company_id: '',
         payment_method: 'transfer',
+        bank_account_id: '',
       })
+      setSelectedLand(null)
       
       // Refresh data
       fetchData()
@@ -171,6 +207,7 @@ export default function QuickTransactionsPage() {
           customer_company_id: equipmentForm.customer_company_id || null,
           customer_name: equipmentForm.customer_name,
           payment_method: equipmentForm.payment_method,
+          bank_account_id: equipmentForm.bank_account_id || null,
         }
       ])
 
@@ -186,6 +223,7 @@ export default function QuickTransactionsPage() {
         customer_name: '',
         customer_company_id: '',
         payment_method: 'transfer',
+        bank_account_id: '',
       })
     } catch (error) {
       console.error('Error recording equipment sale:', error)
@@ -208,6 +246,7 @@ export default function QuickTransactionsPage() {
           date: expenseForm.date,
           vendor_name: expenseForm.vendor_name,
           payment_method: expenseForm.payment_method,
+          bank_account_id: expenseForm.bank_account_id || null,
           description: expenseForm.description,
           status: 'paid',
         }
@@ -223,6 +262,7 @@ export default function QuickTransactionsPage() {
         date: new Date().toISOString().split('T')[0],
         vendor_name: '',
         payment_method: 'transfer',
+        bank_account_id: '',
         description: '',
       })
     } catch (error) {
@@ -284,18 +324,29 @@ export default function QuickTransactionsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Land *</label>
                 <select
                   value={scrapForm.land_id}
-                  onChange={(e) => setScrapForm({ ...scrapForm, land_id: e.target.value })}
+                  onChange={(e) => {
+                    setScrapForm({ ...scrapForm, land_id: e.target.value })
+                    setSelectedLand(lands.find(l => l.id === e.target.value))
+                  }}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select land...</option>
                   {lands.map((land) => (
                     <option key={land.id} value={land.id}>
-                      {land.land_name}
+                      {land.land_name} (Remaining: {land.remaining_tonnage || 0} tons)
                     </option>
                   ))}
                 </select>
               </div>
+              {selectedLand && (
+                <div className="flex items-end">
+                  <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-gray-600">Available Tonnage</p>
+                    <p className="text-lg font-bold text-blue-600">{selectedLand.remaining_tonnage || 0} tons</p>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sale Date *</label>
                 <input
@@ -373,6 +424,22 @@ export default function QuickTransactionsPage() {
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
                       {company.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Received In Bank Account *</label>
+                <select
+                  value={scrapForm.bank_account_id}
+                  onChange={(e) => setScrapForm({ ...scrapForm, bank_account_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
                     </option>
                   ))}
                 </select>
@@ -509,6 +576,22 @@ export default function QuickTransactionsPage() {
                   <option value="cheque">Cheque</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Received In Bank Account *</label>
+                <select
+                  value={equipmentForm.bank_account_id}
+                  onChange={(e) => setEquipmentForm({ ...equipmentForm, bank_account_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -597,6 +680,22 @@ export default function QuickTransactionsPage() {
                   <option value="transfer">Bank Transfer</option>
                   <option value="cash">Cash</option>
                   <option value="cheque">Cheque</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paid From Bank Account *</label>
+                <select
+                  value={expenseForm.bank_account_id}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, bank_account_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

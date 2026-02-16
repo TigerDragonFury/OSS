@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 import Pagination from '@/components/Pagination'
 
@@ -232,14 +232,32 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
     bonuses: payment?.bonuses?.toString() || '0',
     deductions: payment?.deductions?.toString() || '0',
     payment_method: payment?.payment_method || 'bank_transfer',
+    bank_account_id: payment?.bank_account_id || '',
     notes: payment?.notes || ''
   })
 
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const queryClient = useQueryClient()
   const supabase = createClient()
 
   const selectedEmployee = employees.find(e => e.id === formData.employee_id)
 
+  useEffect(() => {
+    fetchBankAccounts()
+  }, [])
+
+  const fetchBankAccounts = async () => {
+    try {
+      const { data } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name, calculated_balance')
+        .eq('status', 'active')
+        .order('account_name')
+      setBankAccounts(data || [])
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error)
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -258,6 +276,7 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
         deductions: deductions,
         total_amount: total,
         payment_method: data.paymentData.payment_method,
+        bank_account_id: data.paymentData.bank_account_id || null,
         notes: data.paymentData.notes || null
       }
 
@@ -417,6 +436,22 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
                   <option value="bank_transfer">Bank Transfer</option>
                   <option value="cash">Cash</option>
                   <option value="check">Check</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paid From Bank Account</label>
+                <select
+                  value={formData.bank_account_id}
+                  onChange={(e) => setFormData({ ...formData, bank_account_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

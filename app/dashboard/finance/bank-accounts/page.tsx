@@ -26,7 +26,17 @@ export default function BankAccountsPage() {
   const [loading, setLoading] = useState(true)
   const [showNewAccount, setShowNewAccount] = useState(false)
   const [showReconcile, setShowReconcile] = useState<string | null>(null)
+  const [showWithdrawal, setShowWithdrawal] = useState(false)
   const [newBalance, setNewBalance] = useState('')
+  
+  const [withdrawalForm, setWithdrawalForm] = useState({
+    from_account_id: '',
+    to_account_id: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+    withdrawal_type: 'transfer',
+  })
 
   const supabase = createClient()
 
@@ -104,6 +114,48 @@ export default function BankAccountsPage() {
     }
   }
 
+  const handleWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!withdrawalForm.from_account_id) {
+      alert('Please select source account')
+      return
+    }
+    if (!withdrawalForm.amount) {
+      alert('Please enter amount')
+      return
+    }
+
+    try {
+      const { error } = await supabase.from('bank_withdrawals').insert([
+        {
+          from_account_id: withdrawalForm.from_account_id,
+          to_account_id: withdrawalForm.to_account_id || null,
+          amount: parseFloat(withdrawalForm.amount),
+          withdrawal_date: withdrawalForm.date,
+          description: withdrawalForm.description,
+          withdrawal_type: withdrawalForm.withdrawal_type,
+        }
+      ])
+
+      if (error) throw error
+      
+      alert('Withdrawal recorded successfully!')
+      setWithdrawalForm({
+        from_account_id: '',
+        to_account_id: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        withdrawal_type: 'transfer',
+      })
+      setShowWithdrawal(false)
+      fetchAccounts()
+    } catch (error) {
+      console.error('Error recording withdrawal:', error)
+      alert('Failed to record withdrawal')
+    }
+  }
+
   if (loading) {
     return <div className="p-6 text-center">Loading bank accounts...</div>
   }
@@ -115,13 +167,22 @@ export default function BankAccountsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Bank Accounts</h1>
           <p className="text-gray-600 mt-1">Manage accounts and reconcile balances</p>
         </div>
-        <button
-          onClick={() => setShowNewAccount(!showNewAccount)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          New Account
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowWithdrawal(!showWithdrawal)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+          >
+            <DollarSign className="h-4 w-4" />
+            Record Withdrawal
+          </button>
+          <button
+            onClick={() => setShowNewAccount(!showNewAccount)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            New Account
+          </button>
+        </div>
       </div>
 
       {/* New Account Form */}
@@ -204,6 +265,111 @@ export default function BankAccountsPage() {
               <button
                 type="button"
                 onClick={() => setShowNewAccount(false)}
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Withdrawal/Transfer Form */}
+      {showWithdrawal && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Record Cash Withdrawal or Transfer</h2>
+          <form onSubmit={handleWithdrawal} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Withdraw From *</label>
+                <select
+                  value={withdrawalForm.from_account_id}
+                  onChange={(e) => setWithdrawalForm({ ...withdrawalForm, from_account_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select account...</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (Balance: {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Withdrawal Type *</label>
+                <select
+                  value={withdrawalForm.withdrawal_type}
+                  onChange={(e) => setWithdrawalForm({ ...withdrawalForm, withdrawal_type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="transfer">Transfer to Another Account</option>
+                  <option value="cash_withdrawal">Cash Withdrawal</option>
+                  <option value="petty_cash">Petty Cash</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              {withdrawalForm.withdrawal_type === 'transfer' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Transfer To *</label>
+                  <select
+                    value={withdrawalForm.to_account_id}
+                    onChange={(e) => setWithdrawalForm({ ...withdrawalForm, to_account_id: e.target.value })}
+                    required={withdrawalForm.withdrawal_type === 'transfer'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select account...</option>
+                    {accounts.filter(acc => acc.account_id !== withdrawalForm.from_account_id).map((acc) => (
+                      <option key={acc.account_id} value={acc.account_id}>
+                        {acc.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={withdrawalForm.amount}
+                  onChange={(e) => setWithdrawalForm({ ...withdrawalForm, amount: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input
+                  type="date"
+                  value={withdrawalForm.date}
+                  onChange={(e) => setWithdrawalForm({ ...withdrawalForm, date: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={withdrawalForm.description}
+                  onChange={(e) => setWithdrawalForm({ ...withdrawalForm, description: e.target.value })}
+                  placeholder="e.g., Petty cash for office supplies"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+              >
+                Record Withdrawal
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawal(false)}
                 className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-medium"
               >
                 Cancel

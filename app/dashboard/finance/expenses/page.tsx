@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 
 export default function ExpensesPage() {
@@ -192,11 +192,31 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
     date: expense?.date || new Date().toISOString().split('T')[0],
     project_type: expense?.project_type || 'general',
     description: expense?.description || '',
-    status: expense?.status || 'pending'
+    status: expense?.status || 'pending',
+    bank_account_id: expense?.bank_account_id || '',
+    payment_method: expense?.payment_method || 'transfer',
   })
 
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const queryClient = useQueryClient()
   const supabase = createClient()
+
+  useEffect(() => {
+    fetchBankAccounts()
+  }, [])
+
+  const fetchBankAccounts = async () => {
+    try {
+      const { data } = await supabase
+        .from('bank_account_reconciliation')
+        .select('account_id, account_name, calculated_balance')
+        .eq('status', 'active')
+        .order('account_name')
+      setBankAccounts(data || [])
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error)
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -231,7 +251,8 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
     // Clean up formData - convert empty strings to null for UUID fields
     const cleanedData = {
       ...formData,
-      company_id: formData.company_id || null
+      company_id: formData.company_id || null,
+      bank_account_id: formData.bank_account_id || null,
     }
     
     mutation.mutate({
@@ -317,6 +338,35 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
                   <option value="vessel">Vessel</option>
                   <option value="land">Land</option>
                   <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <select
+                  value={formData.payment_method}
+                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paid From Bank Account</label>
+                <select
+                  value={formData.bank_account_id}
+                  onChange={(e) => setFormData({ ...formData, bank_account_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select account...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.account_id} value={acc.account_id}>
+                      {acc.account_name} (AED {acc.calculated_balance?.toLocaleString() || 0})
+                    </option>
+                  ))}
                 </select>
               </div>
 

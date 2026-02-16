@@ -291,9 +291,13 @@ export default function DashboardLayout({
                 <FileText className="mr-3 h-5 w-5" />
                 Invoices
               </Link>
-              <Link href="/dashboard/finance/expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+              <Link href="/dashboard/finance/expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/expenses') && !pathname?.includes('import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                 <DollarSign className="mr-3 h-5 w-5" />
                 Expenses
+              </Link>
+              <Link href="/dashboard/finance/expenses/import" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/finance/expenses/import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                <Upload className="mr-3 h-4 w-4" />
+                Import Expenses
               </Link>
               <Link href="/dashboard/finance/reports" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/reports') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                 <TrendingUp className="mr-3 h-5 w-5" />

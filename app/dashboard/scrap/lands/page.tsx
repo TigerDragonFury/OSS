@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { shouldHidePrices, hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { Plus, DollarSign, Edit, Trash2 } from 'lucide-react'
@@ -11,6 +13,14 @@ export default function LandsPage() {
   const [editingLand, setEditingLand] = useState<any>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const hidePrices = shouldHidePrices(userRole)
+  const canEdit = hasModulePermission(userRole, ['scrap', 'lands'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['scrap', 'lands'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['scrap', 'lands'], 'create')
   
   const deleteMutation = useMutation({
     mutationFn: async (landId: string) => {
@@ -76,13 +86,15 @@ export default function LandsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Land Purchases</h1>
           <p className="text-gray-600 mt-1">Manage scrap land operations</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Land
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Land
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -117,10 +129,12 @@ export default function LandsPage() {
                         <p className="text-sm text-gray-600">Location</p>
                         <p className="font-medium">{land.location || 'N/A'}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Purchase Price</p>
-                        <p className="font-medium">{land.purchase_price?.toLocaleString() || 'N/A'} AED</p>
-                      </div>
+                      {!hidePrices && (
+                        <div>
+                          <p className="text-sm text-gray-600">Purchase Price</p>
+                          <p className="font-medium">{land.purchase_price?.toLocaleString() || 'N/A'} AED</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-600">Estimated Tonnage</p>
                         <p className="font-medium">{land.estimated_tonnage || 'N/A'} tons</p>
@@ -187,21 +201,25 @@ export default function LandsPage() {
                     >
                       <DollarSign className="h-5 w-5" />
                     </Link>
-                    <button
-                      onClick={() => setEditingLand(land)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded"
-                      title="Edit Land"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(land)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      title="Delete Land"
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => setEditingLand(land)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded"
+                        title="Edit Land"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(land)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete Land"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

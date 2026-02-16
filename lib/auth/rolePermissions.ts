@@ -102,7 +102,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     },
     hr: {
       employees: fullAccess,
-      salaries: fullAccess,
+      salaries: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can't delete salary records
     },
     marine: {
       vessels: defaultAccess,
@@ -123,27 +123,27 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   accountant: {
     dashboard: { ...viewOnly, hideTotals: false },
     finance: {
-      bankAccounts: { ...fullAccess, hideTotals: false },
-      expenses: fullAccess,
-      reports: { ...fullAccess, hideNetProfit: true, hideAllTimeStats: true }, // Can see transactions but not net profit
-      quickEntry: fullAccess,
+      bankAccounts: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can't edit bank accounts
+      expenses: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can edit but not delete
+      reports: { ...viewOnly, hideNetProfit: true, hideAllTimeStats: true, canView: true }, // Can see transactions but not net profit
+      quickEntry: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false },
     },
     hr: {
       employees: viewOnly,
       salaries: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: true }, // Can see salaries but not create
     },
     marine: {
-      vessels: { canView: true, canCreate: false, canEdit: true, canDelete: false, hideTotals: false },
+      vessels: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only, no editing vessels
       customers: fullAccess,
-      rentals: fullAccess,
+      rentals: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can't delete rentals
     },
     scrap: {
-      lands: fullAccess,
-      equipment: fullAccess,
+      lands: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only, no editing land purchases
+      equipment: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only
     },
     warehouse: {
-      inventory: fullAccess,
-      sales: fullAccess,
+      inventory: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can manage but not delete
+      sales: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
     },
     settings: viewOnly,
   },
@@ -167,11 +167,11 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     },
     scrap: {
       lands: viewOnly,
-      equipment: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: true }, // Manage equipment
+      equipment: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: true }, // Manage equipment but can't delete
     },
     warehouse: {
-      inventory: fullAccess,
-      sales: fullAccess,
+      inventory: { canView: true, canCreate: true, canEdit: true, canDelete: true, hideTotals: false }, // Full control over inventory only
+      sales: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can record but not edit/delete sales
     },
     settings: defaultAccess,
   },
@@ -231,4 +231,22 @@ export function shouldHideTotals(role: string, modulePath: string[]): boolean {
   }
   
   return current.hideTotals === true
+}
+
+/**
+ * Check if sensitive financial fields (purchase prices, costs) should be hidden
+ * Only admin can see purchase prices and costs
+ */
+export function shouldHidePrices(role: string): boolean {
+  return role?.toLowerCase() !== 'admin'
+}
+
+/**
+ * Get masked value for sensitive data (purchase prices, costs)
+ */
+export function getMaskedValue(value: any, role: string): string {
+  if (role?.toLowerCase() === 'admin') {
+    return value?.toString() || '0'
+  }
+  return '***'
 }

@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { shouldHidePrices, getMaskedValue, hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Edit, Trash2, DollarSign } from 'lucide-react'
@@ -11,6 +13,14 @@ export default function VesselsPage() {
   const [editingVessel, setEditingVessel] = useState<any>(null)
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const hidePrices = shouldHidePrices(userRole)
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   const { data: vessels, isLoading } = useQuery({
     queryKey: ['vessels'],
@@ -65,13 +75,15 @@ export default function VesselsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Vessels</h1>
           <p className="text-gray-600 mt-1">Manage your marine fleet</p>
         </div>
-        <button
-          onClick={() => setIsAddingVessel(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Vessel
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAddingVessel(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Vessel
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -104,10 +116,12 @@ export default function VesselsPage() {
                         <p className="text-sm text-gray-600">Type</p>
                         <p className="font-medium">{vessel.vessel_type || 'N/A'}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Purchase Price</p>
-                        <p className="font-medium">{vessel.purchase_price?.toLocaleString() || 'N/A'} AED</p>
-                      </div>
+                      {!hidePrices && (
+                        <div>
+                          <p className="text-sm text-gray-600">Purchase Price</p>
+                          <p className="font-medium">{vessel.purchase_price?.toLocaleString() || 'N/A'} AED</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-600">Location</p>
                         <p className="font-medium">{vessel.current_location || 'N/A'}</p>
@@ -140,25 +154,29 @@ export default function VesselsPage() {
                               +{financial.total_rental_income?.toLocaleString() || 0} AED
                             </p>
                           </div>
-                          <div>
-                            <p className="text-gray-600">Total Costs</p>
-                            <p className="font-semibold text-red-600">
-                              -{((vessel.purchase_price || 0) + (financial.total_expenses || 0) + 
-                                (financial.total_overhaul_expenses || 0)).toLocaleString()} AED
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Net Profit/Loss</p>
-                            <p className={`font-bold ${
-                              (((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
-                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 
-                              ? 'text-green-600' : 'text-red-600'}`}>
-                              {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
-                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 ? '+' : ''}
-                              {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
-                              ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))).toLocaleString()} AED
-                            </p>
-                          </div>
+                          {!hidePrices && (
+                            <>
+                              <div>
+                                <p className="text-gray-600">Total Costs</p>
+                                <p className="font-semibold text-red-600">
+                                  -{((vessel.purchase_price || 0) + (financial.total_expenses || 0) + 
+                                    (financial.total_overhaul_expenses || 0)).toLocaleString()} AED
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Net Profit/Loss</p>
+                                <p className={`font-bold ${
+                                  (((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                                  ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 
+                                  ? 'text-green-600' : 'text-red-600'}`}>
+                                  {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                                  ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))) >= 0 ? '+' : ''}
+                                  {(((financial.total_equipment_sales || 0) + (financial.total_scrap_sales || 0) + (financial.total_rental_income || 0)) - 
+                                  ((vessel.purchase_price || 0) + (financial.total_expenses || 0) + (financial.total_overhaul_expenses || 0))).toLocaleString()} AED
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -178,21 +196,25 @@ export default function VesselsPage() {
                     >
                       <DollarSign className="h-5 w-5" />
                     </Link>
-                    <button
-                      onClick={() => setEditingVessel(vessel)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded"
-                      title="Edit Vessel"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(vessel)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      title="Delete Vessel"
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => setEditingVessel(vessel)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded"
+                        title="Edit Vessel"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(vessel)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete Vessel"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

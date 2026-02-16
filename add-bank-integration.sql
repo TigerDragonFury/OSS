@@ -133,7 +133,8 @@ CREATE INDEX IF NOT EXISTS idx_land_scrap_sales_bank ON land_scrap_sales(bank_ac
 CREATE INDEX IF NOT EXISTS idx_warehouse_sales_bank ON warehouse_sales(bank_account_id);
 
 -- 10. Update bank_account_reconciliation view to include withdrawals
-CREATE OR REPLACE VIEW bank_account_reconciliation AS
+DROP VIEW IF EXISTS bank_account_reconciliation CASCADE;
+CREATE VIEW bank_account_reconciliation AS
 SELECT 
     ba.id as account_id,
     ba.account_name,

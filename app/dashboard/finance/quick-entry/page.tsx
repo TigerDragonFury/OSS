@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 interface Land {
   id: string
   land_name: string
+  remaining_tonnage?: number
+  scrap_tonnage_sold?: number
 }
 
 interface Warehouse {

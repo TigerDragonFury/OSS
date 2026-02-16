@@ -34,6 +34,11 @@ export default function ImportExpensesPage() {
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadResults, setUploadResults] = useState<{ success: number; failed: number; errors: string[] } | null>(null)
+  
+  // Sheet selection
+  const [availableSheets, setAvailableSheets] = useState<string[]>([])
+  const [selectedSheet, setSelectedSheet] = useState<string>('')
+  const [workbookData, setWorkbookData] = useState<XLSX.WorkBook | null>(null)
 
   const queryClient = useQueryClient()
   const supabase = createClient()
@@ -69,65 +74,91 @@ export default function ImportExpensesPage() {
       try {
         const data = e.target?.result
         const workbook = XLSX.read(data, { type: 'binary' })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1')
-
-        // Detect header row by scanning first 20 rows for the one with the most text cells
-        const detectHeaderRow = () => {
-          let bestRow = 0
-          let bestCount = 0
-          for (let r = range.s.r; r <= Math.min(range.s.r + 19, range.e.r); r++) {
-            let textCount = 0
-            for (let c = range.s.c; c <= range.e.c; c++) {
-              const cell = worksheet[XLSX.utils.encode_cell({ r, c })]
-              if (cell && cell.v !== undefined && cell.v !== null) {
-                const val = String(cell.v).trim()
-                if (val && isNaN(Number(val))) textCount++
-              }
-            }
-            if (textCount > bestCount) {
-              bestCount = textCount
-              bestRow = r
-            }
-          }
-          return bestRow
+        const sheets = workbook.SheetNames
+        
+        setWorkbookData(workbook)
+        setAvailableSheets(sheets)
+        
+        // If only one sheet, auto-select and process it
+        if (sheets.length === 1) {
+          setSelectedSheet(sheets[0])
+          processSheet(workbook, sheets[0])
+        } else {
+          // Multiple sheets - let user choose
+          setSelectedSheet('')
         }
-
-        const headerRow = detectHeaderRow()
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', range: headerRow })
-
-        if (jsonData.length === 0) {
-          alert('No data found in the Excel file.')
-          return
-        }
-
-        const columns = Object.keys(jsonData[0] as any)
-        setExcelColumns(columns)
-        setRawData(jsonData)
-
-        // Auto-guess column mapping
-        const autoMap: Record<string, string> = {}
-        for (const col of columns) {
-          const lower = col.toLowerCase()
-          if (/date/.test(lower)) autoMap[col] = 'date'
-          else if (/amount|total|sum|price|cost/.test(lower)) autoMap[col] = 'amount'
-          else if (/type|expense.?type/.test(lower)) autoMap[col] = 'expense_type'
-          else if (/categ/.test(lower)) autoMap[col] = 'category'
-          else if (/desc/.test(lower)) autoMap[col] = 'description'
-          else if (/vendor|supplier|payee/.test(lower)) autoMap[col] = 'vendor_name'
-          else if (/payment|method/.test(lower)) autoMap[col] = 'payment_method'
-          else if (/status/.test(lower)) autoMap[col] = 'status'
-          else autoMap[col] = 'skip'
-        }
-        setColumnMapping(autoMap)
-        setStep('columns')
       } catch (error) {
         alert('Error parsing Excel file. Please check the file format.')
         console.error(error)
       }
     }
     reader.readAsBinaryString(file)
+  }
+
+  const processSheet = (workbook: XLSX.WorkBook, sheetName: string) => {
+    try {
+      const worksheet = workbook.Sheets[sheetName]
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1')
+
+      // Detect header row by scanning first 20 rows for the one with the most text cells
+      const detectHeaderRow = () => {
+        let bestRow = 0
+        let bestCount = 0
+        for (let r = range.s.r; r <= Math.min(range.s.r + 19, range.e.r); r++) {
+          let textCount = 0
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cell = worksheet[XLSX.utils.encode_cell({ r, c })]
+            if (cell && cell.v !== undefined && cell.v !== null) {
+              const val = String(cell.v).trim()
+              if (val && isNaN(Number(val))) textCount++
+            }
+          }
+          if (textCount > bestCount) {
+            bestCount = textCount
+            bestRow = r
+          }
+        }
+        return bestRow
+      }
+
+      const headerRow = detectHeaderRow()
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', range: headerRow })
+
+      if (jsonData.length === 0) {
+        alert('No data found in the selected sheet.')
+        return
+      }
+
+      const columns = Object.keys(jsonData[0] as any)
+      setExcelColumns(columns)
+      setRawData(jsonData)
+
+      // Auto-guess column mapping
+      const autoMap: Record<string, string> = {}
+      for (const col of columns) {
+        const lower = col.toLowerCase()
+        if (/date/.test(lower)) autoMap[col] = 'date'
+        else if (/amount|total|sum|price|cost/.test(lower)) autoMap[col] = 'amount'
+        else if (/type|expense.?type/.test(lower)) autoMap[col] = 'expense_type'
+        else if (/categ/.test(lower)) autoMap[col] = 'category'
+        else if (/desc/.test(lower)) autoMap[col] = 'description'
+        else if (/vendor|supplier|payee/.test(lower)) autoMap[col] = 'vendor_name'
+        else if (/payment|method/.test(lower)) autoMap[col] = 'payment_method'
+        else if (/status/.test(lower)) autoMap[col] = 'status'
+        else autoMap[col] = 'skip'
+      }
+      setColumnMapping(autoMap)
+      setStep('columns')
+    } catch (error) {
+      alert('Error processing sheet. Please check the data format.')
+      console.error(error)
+    }
+  }
+
+  const handleSheetSelect = (sheetName: string) => {
+    if (!workbookData) return
+    setSelectedSheet(sheetName)
+    processSheet(workbookData, sheetName)
   }
 
   const getUniqueValues = (fieldKey: string): string[] => {
@@ -274,6 +305,9 @@ export default function ImportExpensesPage() {
     setCategoryMapping({})
     setExpenseTypeMapping({})
     setUploadResults(null)
+    setAvailableSheets([])
+    setSelectedSheet('')
+    setWorkbookData(null)
   }
 
   const steps: { key: Step; label: string; icon: any }[] = [
@@ -333,6 +367,9 @@ export default function ImportExpensesPage() {
                     <span className="font-semibold">Click to upload</span> or drag and drop
                   </p>
                   <p className="text-xs text-gray-500">Excel file (.xlsx, .xls)</p>
+                  {file && (
+                    <p className="mt-2 text-sm text-blue-600 font-medium">{file.name}</p>
+                  )}
                 </div>
                 <input
                   type="file"
@@ -343,10 +380,36 @@ export default function ImportExpensesPage() {
               </label>
             </div>
 
+            {/* Sheet Selection */}
+            {availableSheets.length > 1 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-3">Select Sheet</h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Your Excel file contains {availableSheets.length} sheets. Please select the one you want to import:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {availableSheets.map((sheet) => (
+                    <button
+                      key={sheet}
+                      onClick={() => handleSheetSelect(sheet)}
+                      className={`px-4 py-3 rounded-lg font-medium transition-colors ${
+                        selectedSheet === sheet
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-blue-900 hover:bg-blue-100 border border-blue-300'
+                      }`}
+                    >
+                      {sheet}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-900 mb-2">How it works:</h3>
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Upload your Excel file with expense data</li>
+                {availableSheets.length > 1 && <li>Select which sheet contains your data</li>}
                 <li>Map your Excel columns to the system expense fields</li>
                 <li>Map category names from your file to your preferred categories</li>
                 <li>Preview the data and import</li>

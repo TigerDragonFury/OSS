@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { DollarSign, Ship, LandPlot, ArrowDownCircle, ArrowUpCircle, Download, Filter, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { shouldHideTotals } from '@/lib/auth/rolePermissions'
 import Pagination from '@/components/Pagination'
 import * as XLSX from 'xlsx'
 
@@ -35,6 +37,11 @@ export default function ReportsPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Check if user should see all-time totals
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const hideTotals = shouldHideTotals(userRole, ['finance', 'reports'])
 
   useEffect(() => {
     fetchData(formStartDate || appliedStartDate, formEndDate || appliedEndDate)
@@ -327,50 +334,52 @@ export default function ReportsPage() {
         <p className="text-gray-600 mt-1">Comprehensive financial analysis and summaries</p>
       </div>
 
-      {/* Overall Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">All-Time Cash In</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">
-                {totalIncome.toLocaleString()} AED
-              </p>
-            </div>
-            <div className="bg-green-100 rounded-full p-3">
-              <ArrowDownCircle className="h-8 w-8 text-green-600" />
+      {/* Overall Summary - Hidden for non-admin roles */}
+      {!hideTotals && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">All-Time Cash In</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">
+                  {totalIncome.toLocaleString()} AED
+                </p>
+              </div>
+              <div className="bg-green-100 rounded-full p-3">
+                <ArrowDownCircle className="h-8 w-8 text-green-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">All-Time Cash Out</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">
-                {totalExpenses.toLocaleString()} AED
-              </p>
-            </div>
-            <div className="bg-red-100 rounded-full p-3">
-              <ArrowUpCircle className="h-8 w-8 text-red-600" />
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">All-Time Cash Out</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">
+                  {totalExpenses.toLocaleString()} AED
+                </p>
+              </div>
+              <div className="bg-red-100 rounded-full p-3">
+                <ArrowUpCircle className="h-8 w-8 text-red-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">All-Time Net Profit</p>
-              <p className={`text-3xl font-bold mt-2 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {netProfit >= 0 ? '+' : ''}{netProfit.toLocaleString()} AED
-              </p>
-            </div>
-            <div className={`rounded-full p-3 ${netProfit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              <DollarSign className={`h-8 w-8 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">All-Time Net Profit</p>
+                <p className={`text-3xl font-bold mt-2 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {netProfit >= 0 ? '+' : ''}{netProfit.toLocaleString()} AED
+                </p>
+              </div>
+              <div className={`rounded-full p-3 ${netProfit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                <DollarSign className={`h-8 w-8 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Cashflow Summary */}
       <div className="bg-white rounded-lg shadow">

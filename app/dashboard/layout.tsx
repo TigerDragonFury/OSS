@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth/AuthContext'
+import { canAccessModule } from '@/lib/auth/rolePermissions'
 import {
   Ship,
   LandPlot,
@@ -42,6 +43,15 @@ export default function DashboardLayout({
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
 
+  // Get user role for permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+
+  // Helper to check if user can access a module
+  const canAccess = (modulePath: string[]) => {
+    if (user?.role === 'admin' || user?.roles?.includes('admin')) return true
+    return canAccessModule(userRole, modulePath)
+  }
+
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/')
 
   if (loading) {
@@ -70,21 +80,31 @@ export default function DashboardLayout({
               <Link href="/dashboard" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard') && pathname === '/dashboard' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
                 Dashboard
               </Link>
-              <Link href="/dashboard/marine/vessels" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/marine') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                Marine
-              </Link>
-              <Link href="/dashboard/rentals" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/rentals') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                Rentals
-              </Link>
-              <Link href="/dashboard/scrap/lands" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/scrap') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                Scrap
-              </Link>
-              <Link href="/dashboard/hr/employees" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/hr') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                HR
-              </Link>
-              <Link href="/dashboard/finance/invoices" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/finance') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                Finance
-              </Link>
+              {canAccess(['marine', 'vessels']) && (
+                <Link href="/dashboard/marine/vessels" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/marine') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Marine
+                </Link>
+              )}
+              {canAccess(['marine', 'rentals']) && (
+                <Link href="/dashboard/rentals" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/rentals') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Rentals
+                </Link>
+              )}
+              {canAccess(['scrap', 'lands']) && (
+                <Link href="/dashboard/scrap/lands" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/scrap') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Scrap
+                </Link>
+              )}
+              {canAccess(['hr', 'employees']) && (
+                <Link href="/dashboard/hr/employees" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/hr') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  HR
+                </Link>
+              )}
+              {canAccess(['finance', 'expenses']) && (
+                <Link href="/dashboard/finance/invoices" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/finance') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Finance
+                </Link>
+              )}
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -177,147 +197,171 @@ export default function DashboardLayout({
                 <Building2 className="mr-3 h-5 w-5" />
                 Companies
               </Link>
-              <Link href="/dashboard/admin/sync-expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <RefreshCw className="mr-3 h-5 w-5" />
-                Sync Expenses
-              </Link>
-              <Link href="/dashboard/admin/sync-tonnage" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-tonnage') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <RefreshCw className="mr-3 h-5 w-5" />
-                Sync Tonnage
-              </Link>
+              {(user?.role === 'admin' || user?.roles?.includes('admin')) && (
+                <>
+                  <Link href="/dashboard/admin/sync-expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <RefreshCw className="mr-3 h-5 w-5" />
+                    Sync Expenses
+                  </Link>
+                  <Link href="/dashboard/admin/sync-tonnage" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-tonnage') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <RefreshCw className="mr-3 h-5 w-5" />
+                    Sync Tonnage
+                  </Link>
+                </>
+              )}
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Marine Services
-              </h3>
-              <Link href="/dashboard/marine/vessels" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/vessels') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Ship className="mr-3 h-5 w-5" />
-                Vessels
-              </Link>
-              <Link href="/dashboard/marine/warehouses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/warehouses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Warehouse className="mr-3 h-5 w-5" />
-                Warehouses
-              </Link>
-              <Link href="/dashboard/marine/inventory" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/inventory') && !pathname?.includes('bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Box className="mr-3 h-5 w-5" />
-                Inventory
-              </Link>
-              <Link href="/dashboard/marine/inventory/bulk-upload" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/marine/inventory/bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Upload className="mr-3 h-4 w-4" />
-                Bulk Upload
-              </Link>
-              <Link href="/dashboard/marine/equipment-tracking" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/equipment-tracking') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Wrench className="mr-3 h-5 w-5" />
-                Equipment
-              </Link>
-              <Link href="/dashboard/marine/requisitions" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/requisitions') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <ClipboardList className="mr-3 h-5 w-5" />
-                Requisitions
-              </Link>
-              <Link href="/dashboard/marine/overhauls" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/overhauls') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Settings className="mr-3 h-5 w-5" />
-                Overhauls
-              </Link>
-              <Link href="/dashboard/marine/maintenance" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/maintenance') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Wrench className="mr-3 h-5 w-5" />
-                Maintenance
-              </Link>
-              <Link href="/dashboard/marine/fuel" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/fuel') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Fuel className="mr-3 h-5 w-5" />
-                Fuel Records
-              </Link>
-            </div>
+            {canAccess(['marine', 'vessels']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Marine Services
+                </h3>
+                <Link href="/dashboard/marine/vessels" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/vessels') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Ship className="mr-3 h-5 w-5" />
+                  Vessels
+                </Link>
+                {canAccess(['warehouse', 'warehouses']) && (
+                  <Link href="/dashboard/marine/warehouses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/warehouses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Warehouse className="mr-3 h-5 w-5" />
+                    Warehouses
+                  </Link>
+                )}
+                {canAccess(['warehouse', 'inventory']) && (
+                  <>
+                    <Link href="/dashboard/marine/inventory" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/inventory') && !pathname?.includes('bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <Box className="mr-3 h-5 w-5" />
+                      Inventory
+                    </Link>
+                    <Link href="/dashboard/marine/inventory/bulk-upload" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/marine/inventory/bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <Upload className="mr-3 h-4 w-4" />
+                      Bulk Upload
+                    </Link>
+                  </>
+                )}
+                {canAccess(['warehouse', 'equipment']) && (
+                  <Link href="/dashboard/marine/equipment-tracking" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/equipment-tracking') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Wrench className="mr-3 h-5 w-5" />
+                    Equipment
+                  </Link>
+                )}
+                <Link href="/dashboard/marine/requisitions" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/requisitions') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <ClipboardList className="mr-3 h-5 w-5" />
+                  Requisitions
+                </Link>
+                <Link href="/dashboard/marine/overhauls" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/overhauls') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Settings className="mr-3 h-5 w-5" />
+                  Overhauls
+                </Link>
+                <Link href="/dashboard/marine/maintenance" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/maintenance') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Wrench className="mr-3 h-5 w-5" />
+                  Maintenance
+                </Link>
+                <Link href="/dashboard/marine/fuel" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/fuel') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Fuel className="mr-3 h-5 w-5" />
+                  Fuel Records
+                </Link>
+              </div>
+            )}
 
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Vessel Rentals
-              </h3>
-              <Link href="/dashboard/rentals" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard/rentals' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Calendar className="mr-3 h-5 w-5" />
-                Bookings
-              </Link>
-              <Link href="/dashboard/rentals/customers" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/rentals/customers') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Building2 className="mr-3 h-5 w-5" />
-                Customers
-              </Link>
-              <Link href="/dashboard/rentals/payments" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/rentals/payments') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <DollarSign className="mr-3 h-5 w-5" />
-                Payments
-              </Link>
-            </div>
+            {canAccess(['marine', 'rentals']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Vessel Rentals
+                </h3>
+                <Link href="/dashboard/rentals" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard/rentals' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Calendar className="mr-3 h-5 w-5" />
+                  Bookings
+                </Link>
+                <Link href="/dashboard/rentals/customers" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/rentals/customers') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Building2 className="mr-3 h-5 w-5" />
+                  Customers
+                </Link>
+                <Link href="/dashboard/rentals/payments" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/rentals/payments') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <DollarSign className="mr-3 h-5 w-5" />
+                  Payments
+                </Link>
+              </div>
+            )}
 
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Crew Management
-              </h3>
-              <Link href="/dashboard/crew" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard/crew' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <UserCheck className="mr-3 h-5 w-5" />
-                Assignments
-              </Link>
-              <Link href="/dashboard/crew/certifications" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/crew/certifications') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Award className="mr-3 h-5 w-5" />
-                Certifications
-              </Link>
-            </div>
+            {canAccess(['hr', 'employees']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Crew Management
+                </h3>
+                <Link href="/dashboard/crew" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard/crew' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <UserCheck className="mr-3 h-5 w-5" />
+                  Assignments
+                </Link>
+                <Link href="/dashboard/crew/certifications" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/crew/certifications') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Award className="mr-3 h-5 w-5" />
+                  Certifications
+                </Link>
+              </div>
+            )}
 
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Scrap Services
-              </h3>
-              <Link href="/dashboard/scrap/lands" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/scrap/lands') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <LandPlot className="mr-3 h-5 w-5" />
-                Land Purchases
-              </Link>
-              <Link href="/dashboard/scrap/equipment" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/scrap/equipment') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Package className="mr-3 h-5 w-5" />
-                Equipment
-              </Link>
-            </div>
+            {canAccess(['scrap', 'lands']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Scrap Services
+                </h3>
+                <Link href="/dashboard/scrap/lands" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/scrap/lands') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <LandPlot className="mr-3 h-5 w-5" />
+                  Land Purchases
+                </Link>
+                <Link href="/dashboard/scrap/equipment" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/scrap/equipment') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Package className="mr-3 h-5 w-5" />
+                  Equipment
+                </Link>
+              </div>
+            )}
 
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Finance
-              </h3>
-              <Link href="/dashboard/finance/quick-entry" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/quick-entry') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Plus className="mr-3 h-5 w-5" />
-                Quick Entry
-              </Link>
-              <Link href="/dashboard/finance/bank-accounts" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/bank-accounts') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Building2 className="mr-3 h-5 w-5" />
-                Bank Accounts
-              </Link>
-              <Link href="/dashboard/finance/invoices" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/invoices') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <FileText className="mr-3 h-5 w-5" />
-                Invoices
-              </Link>
-              <Link href="/dashboard/finance/expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/expenses') && !pathname?.includes('import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <DollarSign className="mr-3 h-5 w-5" />
-                Expenses
-              </Link>
-              <Link href="/dashboard/finance/expenses/import" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/finance/expenses/import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Upload className="mr-3 h-4 w-4" />
-                Import Expenses
-              </Link>
-              <Link href="/dashboard/finance/reports" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/reports') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <TrendingUp className="mr-3 h-5 w-5" />
-                Reports
-              </Link>
-            </div>
+            {canAccess(['finance', 'expenses']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Finance
+                </h3>
+                <Link href="/dashboard/finance/quick-entry" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/quick-entry') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Plus className="mr-3 h-5 w-5" />
+                  Quick Entry
+                </Link>
+                <Link href="/dashboard/finance/bank-accounts" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/bank-accounts') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Building2 className="mr-3 h-5 w-5" />
+                  Bank Accounts
+                </Link>
+                <Link href="/dashboard/finance/invoices" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/invoices') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <FileText className="mr-3 h-5 w-5" />
+                  Invoices
+                </Link>
+                <Link href="/dashboard/finance/expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/expenses') && !pathname?.includes('import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <DollarSign className="mr-3 h-5 w-5" />
+                  Expenses
+                </Link>
+                <Link href="/dashboard/finance/expenses/import" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/finance/expenses/import') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Upload className="mr-3 h-4 w-4" />
+                  Import Expenses
+                </Link>
+                <Link href="/dashboard/finance/reports" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/finance/reports') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <TrendingUp className="mr-3 h-5 w-5" />
+                  Reports
+                </Link>
+              </div>
+            )}
 
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                HR
-              </h3>
-              <Link href="/dashboard/hr/employees" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/hr/employees') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Users className="mr-3 h-5 w-5" />
-                Employees
-              </Link>
-              <Link href="/dashboard/hr/salaries" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/hr/salaries') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <DollarSign className="mr-3 h-5 w-5" />
-                Salaries
-              </Link>
-            </div>
+            {canAccess(['hr', 'employees']) && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  HR
+                </h3>
+                <Link href="/dashboard/hr/employees" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/hr/employees') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Users className="mr-3 h-5 w-5" />
+                  Employees
+                </Link>
+                <Link href="/dashboard/hr/salaries" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/hr/salaries') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <DollarSign className="mr-3 h-5 w-5" />
+                  Salaries
+                </Link>
+              </div>
+            )}
           </nav>
         </aside>
 

@@ -20,78 +20,122 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   
-  // Filter states
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  // Filter form states (what user is typing)
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formEndDate, setFormEndDate] = useState('')
+  const [formFilterType, setFormFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  
+  // Applied filter states (what's being used for display)
+  const [appliedStartDate, setAppliedStartDate] = useState('')
+  const [appliedEndDate, setAppliedEndDate] = useState('')
+  const [appliedFilterType, setAppliedFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  
   const [showFilters, setShowFilters] = useState(false)
 
   const supabase = createClient()
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const today = new Date()
-        const last30Days = new Date(today)
-        last30Days.setDate(today.getDate() - 30)
-        const defaultStartDate = last30Days.toISOString().split('T')[0]
-        const defaultEndDate = today.toISOString().split('T')[0]
-
-        setStartDate(defaultStartDate)
-        setEndDate(defaultEndDate)
-
-        // Get vessel financial summary
-        const { data: vesselFinancials } = await supabase
-          .from('vessel_financial_summary')
-          .select('*')
-
-        // Get land financial summary
-        const { data: landFinancials } = await supabase
-          .from('land_financial_summary')
-          .select('*')
-
-        // Cashflow data
-        const { data: cashIn } = await supabase
-          .from('income_records')
-          .select('id, income_date, amount, description, source_type')
-          .gte('income_date', defaultStartDate)
-          .order('income_date', { ascending: false })
-
-        const { data: cashOut } = await supabase
-          .from('expenses')
-          .select('id, date, amount, description, expense_type, category')
-          .eq('status', 'paid')
-          .gte('date', defaultStartDate)
-          .order('date', { ascending: false })
-
-        // All-time totals
-        const { data: cashInAll } = await supabase
-          .from('income_records')
-          .select('amount')
-
-        const { data: cashOutAll } = await supabase
-          .from('expenses')
-          .select('amount')
-          .eq('status', 'paid')
-
-        setData({
-          vesselFinancials: vesselFinancials || [],
-          landFinancials: landFinancials || [],
-          cashIn: cashIn || [],
-          cashOut: cashOut || [],
-          cashInAll: cashInAll || [],
-          cashOutAll: cashOutAll || [],
-          cashStartDate: defaultStartDate
-        })
-      } catch (error) {
-        console.error('Error fetching reports data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
+    fetchData(formStartDate || appliedStartDate, formEndDate || appliedEndDate)
   }, [])
+
+  const fetchData = async (startDateParam: string, endDateParam: string) => {
+    try {
+      setLoading(true)
+      const today = new Date()
+      const last30Days = new Date(today)
+      last30Days.setDate(today.getDate() - 30)
+      const defaultStartDate = last30Days.toISOString().split('T')[0]
+      const defaultEndDate = today.toISOString().split('T')[0]
+
+      const finalStartDate = startDateParam || defaultStartDate
+      const finalEndDate = endDateParam || defaultEndDate
+
+      // Set form dates on initial load
+      if (!appliedStartDate && !formStartDate) {
+        setFormStartDate(finalStartDate)
+        setAppliedStartDate(finalStartDate)
+      }
+      if (!appliedEndDate && !formEndDate) {
+        setFormEndDate(finalEndDate)
+        setAppliedEndDate(finalEndDate)
+      }
+
+      // Get vessel financial summary
+      const { data: vesselFinancials } = await supabase
+        .from('vessel_financial_summary')
+        .select('*')
+
+      // Get land financial summary
+      const { data: landFinancials } = await supabase
+        .from('land_financial_summary')
+        .select('*')
+
+      // Cashflow data with applied date range
+      const { data: cashIn } = await supabase
+        .from('income_records')
+        .select('id, income_date, amount, description, source_type')
+        .gte('income_date', finalStartDate)
+        .lte('income_date', finalEndDate)
+        .order('income_date', { ascending: false })
+
+      const { data: cashOut } = await supabase
+        .from('expenses')
+        .select('id, date, amount, description, expense_type, category')
+        .eq('status', 'paid')
+        .gte('date', finalStartDate)
+        .lte('date', finalEndDate)
+        .order('date', { ascending: false })
+
+      // All-time totals
+      const { data: cashInAll } = await supabase
+        .from('income_records')
+        .select('amount')
+
+      const { data: cashOutAll } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('status', 'paid')
+
+      setData({
+        vesselFinancials: vesselFinancials || [],
+        landFinancials: landFinancials || [],
+        cashIn: cashIn || [],
+        cashOut: cashOut || [],
+        cashInAll: cashInAll || [],
+        cashOutAll: cashOutAll || [],
+      })
+    } catch (error) {
+      console.error('Error fetching reports data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleApplyFilters = () => {
+    setAppliedStartDate(formStartDate)
+    setAppliedEndDate(formEndDate)
+    setAppliedFilterType(formFilterType)
+    setCurrentPage(1)
+    fetchData(formStartDate, formEndDate)
+    setShowFilters(false)
+  }
+
+  const handleResetFilters = () => {
+    const today = new Date()
+    const last30Days = new Date(today)
+    last30Days.setDate(today.getDate() - 30)
+    const defaultStartDate = last30Days.toISOString().split('T')[0]
+    const defaultEndDate = today.toISOString().split('T')[0]
+
+    setFormStartDate(defaultStartDate)
+    setFormEndDate(defaultEndDate)
+    setFormFilterType('all')
+    setAppliedStartDate(defaultStartDate)
+    setAppliedEndDate(defaultEndDate)
+    setAppliedFilterType('all')
+    setCurrentPage(1)
+    fetchData(defaultStartDate, defaultEndDate)
+  }
 
   if (loading) {
     return <div className="p-6 text-center">Loading financial reports...</div>
@@ -124,16 +168,11 @@ export default function ReportsPage() {
     }))
   ]
 
-  // Apply filters
-  if (startDate || endDate || filterType !== 'all') {
+  // Apply transaction type filter only
+  if (appliedFilterType !== 'all') {
     cashflowEvents = cashflowEvents.filter(event => {
-      const eventDate = event.date || ''
-      
-      if (startDate && eventDate < startDate) return false
-      if (endDate && eventDate > endDate) return false
-      if (filterType === 'income' && event.direction !== 'in') return false
-      if (filterType === 'expense' && event.direction !== 'out') return false
-      
+      if (appliedFilterType === 'income' && event.direction !== 'in') return false
+      if (appliedFilterType === 'expense' && event.direction !== 'out') return false
       return true
     })
   }
@@ -159,7 +198,7 @@ export default function ReportsPage() {
     // Prepare data for Excel export
     const exportData = [
       ['CASHFLOW REPORT'],
-      [`Period: ${startDate} to ${endDate}`],
+      [`Period: ${appliedStartDate} to ${appliedEndDate}`],
       [''],
       ['SUMMARY'],
       ['Total Cash In', filteredCashInTotal.toLocaleString(), 'AED'],
@@ -190,7 +229,7 @@ export default function ReportsPage() {
     ]
 
     // Generate file
-    XLSX.writeFile(wb, `cashflow_report_${startDate}_to_${endDate}.xlsx`)
+    XLSX.writeFile(wb, `cashflow_report_${appliedStartDate}_to_${appliedEndDate}.xlsx`)
   }
 
   const exportToPDF = () => {
@@ -202,7 +241,7 @@ export default function ReportsPage() {
       '╚══════════════════════════════════════════════════════════════════╝',
       '',
       `Report Generated: ${timestamp}`,
-      `Period: ${startDate} to ${endDate}`,
+      `Period: ${appliedStartDate} to ${appliedEndDate}`,
       '',
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
       'SUMMARY',
@@ -230,7 +269,7 @@ export default function ReportsPage() {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `cashflow_report_${startDate}_to_${endDate}.txt`
+    link.download = `cashflow_report_${appliedStartDate}_to_${appliedEndDate}.txt`
     document.body.appendChild(link)
     link.click()
     window.URL.revokeObjectURL(url)
@@ -295,7 +334,7 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Cashflow Analysis</h2>
-              <p className="text-sm text-gray-600 mt-1">Filtered by: {startDate} to {endDate}</p>
+              <p className="text-sm text-gray-600 mt-1">Filtered by: {appliedStartDate} to {appliedEndDate} | {appliedFilterType === 'all' ? 'All Transactions' : appliedFilterType === 'income' ? 'Income Only' : 'Expenses Only'}</p>
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -314,11 +353,8 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                   <input
                     type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value)
-                      setCurrentPage(1)
-                    }}
+                    value={formStartDate}
+                    onChange={(e) => setFormStartDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -326,22 +362,16 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
                   <input
                     type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value)
-                      setCurrentPage(1)
-                    }}
+                    value={formEndDate}
+                    onChange={(e) => setFormEndDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
                   <select
-                    value={filterType}
-                    onChange={(e) => {
-                      setFilterType(e.target.value as 'all' | 'income' | 'expense')
-                      setCurrentPage(1)
-                    }}
+                    value={formFilterType}
+                    onChange={(e) => setFormFilterType(e.target.value as 'all' | 'income' | 'expense')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="all">All Transactions</option>
@@ -352,16 +382,16 @@ export default function ReportsPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setStartDate(data.cashStartDate)
-                    const today = new Date()
-                    setEndDate(today.toISOString().split('T')[0])
-                    setFilterType('all')
-                    setCurrentPage(1)
-                  }}
+                  onClick={handleApplyFilters}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                >
+                  Apply Filters
+                </button>
+                <button
+                  onClick={handleResetFilters}
                   className="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg"
                 >
-                  Reset Filters
+                  Reset to Default
                 </button>
               </div>
             </div>

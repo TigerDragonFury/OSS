@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/AuthContext'
-import { canAccessModule } from '@/lib/auth/rolePermissions'
+import { canAccessModule, isRouteAllowed, getDefaultRoute } from '@/lib/auth/rolePermissions'
 import {
   Ship,
   LandPlot,
@@ -31,7 +32,7 @@ import {
   RefreshCw,
   Plus
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function DashboardLayout({
   children,
@@ -40,11 +41,23 @@ export default function DashboardLayout({
 }) {
   const { user, logout, loading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
 
   // Get user role for permissions
   const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+
+  // Redirect restricted roles away from unauthorized pages
+  useEffect(() => {
+    if (!user || loading || !pathname) return
+    const isAdmin = user.role === 'admin' || user.roles?.includes('admin')
+    if (isAdmin) return
+
+    if (!isRouteAllowed(userRole, pathname)) {
+      router.replace(getDefaultRoute(userRole))
+    }
+  }, [user, loading, pathname, userRole, router])
 
   // Helper to check if user can access a module
   const canAccess = (modulePath: string[]) => {
@@ -77,9 +90,11 @@ export default function DashboardLayout({
               <h1 className="text-2xl font-bold text-blue-600">OSS Marine</h1>
             </div>
             <nav className="hidden md:flex space-x-6">
-              <Link href="/dashboard" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard') && pathname === '/dashboard' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
-                Dashboard
-              </Link>
+              {canAccess(['dashboard']) && (
+                <Link href="/dashboard" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard') && pathname === '/dashboard' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Dashboard
+                </Link>
+              )}
               {canAccess(['marine', 'vessels']) && (
                 <Link href="/dashboard/marine/vessels" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/marine') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
                   Marine
@@ -103,6 +118,12 @@ export default function DashboardLayout({
               {canAccess(['finance', 'expenses']) && (
                 <Link href="/dashboard/finance/invoices" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/finance') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
                   Finance
+                </Link>
+              )}
+              {/* Storekeeper gets a direct Inventory link */}
+              {userRole === 'storekeeper' && (
+                <Link href="/dashboard/marine/inventory" className={`px-3 py-2 text-sm font-medium ${isActive('/dashboard/marine/inventory') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+                  Inventory
                 </Link>
               )}
             </nav>
@@ -185,31 +206,50 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <aside className="hidden lg:flex lg:flex-col w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)]">
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Main
-              </h3>
-              <Link href="/dashboard" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <BarChart3 className="mr-3 h-5 w-5" />
-                Dashboard
-              </Link>
-              <Link href="/dashboard/companies" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/companies') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                <Building2 className="mr-3 h-5 w-5" />
-                Companies
-              </Link>
-              {(user?.role === 'admin' || user?.roles?.includes('admin')) && (
-                <>
-                  <Link href="/dashboard/admin/sync-expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                    <RefreshCw className="mr-3 h-5 w-5" />
-                    Sync Expenses
-                  </Link>
-                  <Link href="/dashboard/admin/sync-tonnage" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-tonnage') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                    <RefreshCw className="mr-3 h-5 w-5" />
-                    Sync Tonnage
-                  </Link>
-                </>
-              )}
-            </div>
+            {canAccess(['dashboard']) && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Main
+                </h3>
+                <Link href="/dashboard" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${pathname === '/dashboard' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  Dashboard
+                </Link>
+                <Link href="/dashboard/companies" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/companies') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Building2 className="mr-3 h-5 w-5" />
+                  Companies
+                </Link>
+                {(user?.role === 'admin' || user?.roles?.includes('admin')) && (
+                  <>
+                    <Link href="/dashboard/admin/sync-expenses" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-expenses') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <RefreshCw className="mr-3 h-5 w-5" />
+                      Sync Expenses
+                    </Link>
+                    <Link href="/dashboard/admin/sync-tonnage" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/admin/sync-tonnage') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <RefreshCw className="mr-3 h-5 w-5" />
+                      Sync Tonnage
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Storekeeper: Inventory-only sidebar */}
+            {userRole === 'storekeeper' && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  Inventory
+                </h3>
+                <Link href="/dashboard/marine/inventory" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive('/dashboard/marine/inventory') && !pathname?.includes('bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Box className="mr-3 h-5 w-5" />
+                  Inventory
+                </Link>
+                <Link href="/dashboard/marine/inventory/bulk-upload" className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${isActive('/dashboard/marine/inventory/bulk-upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                  <Upload className="mr-3 h-4 w-4" />
+                  Bulk Upload
+                </Link>
+              </div>
+            )}
 
             {canAccess(['marine', 'vessels']) && (
               <div className="mb-6">

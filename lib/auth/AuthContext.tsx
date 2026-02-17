@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { getDefaultRoute } from '@/lib/auth/rolePermissions'
 
 interface User {
   id: string
@@ -84,7 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!currentUser && !isPublicPath) {
         router.push('/login')
       } else if (currentUser && pathname === '/login') {
-        router.push('/dashboard')
+        try {
+          const parsed = JSON.parse(currentUser)
+          const role = parsed.role || parsed.roles?.[0] || 'storekeeper'
+          router.push(getDefaultRoute(role))
+        } catch {
+          router.push('/dashboard')
+        }
       }
     }
   }, [user, loading, pathname, router, mounted])

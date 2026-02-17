@@ -121,7 +121,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   },
 
   accountant: {
-    dashboard: { ...viewOnly, hideTotals: false },
+    dashboard: defaultAccess, // No dashboard access - finance only
     finance: {
       bankAccounts: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can't edit bank accounts
       expenses: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can edit but not delete
@@ -129,49 +129,49 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
       quickEntry: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false },
     },
     hr: {
-      employees: viewOnly,
-      salaries: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: true }, // Can see salaries but not create
+      employees: defaultAccess,
+      salaries: defaultAccess,
     },
     marine: {
-      vessels: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only, no editing vessels
-      customers: fullAccess,
-      rentals: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can't delete rentals
+      vessels: defaultAccess,
+      customers: defaultAccess,
+      rentals: defaultAccess,
     },
     scrap: {
-      lands: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only, no editing land purchases
-      equipment: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false }, // View only
+      lands: defaultAccess,
+      equipment: defaultAccess,
     },
     warehouse: {
-      inventory: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can manage but not delete
-      sales: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
+      inventory: defaultAccess,
+      sales: defaultAccess,
     },
     settings: viewOnly,
   },
 
   storekeeper: {
-    dashboard: { ...viewOnly, hideTotals: true },
+    dashboard: defaultAccess, // No dashboard access - inventory only
     finance: {
       bankAccounts: defaultAccess,
       expenses: defaultAccess,
       reports: { ...defaultAccess, hideNetProfit: true, hideAllTimeStats: true },
-      quickEntry: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: true }, // Can record sales
+      quickEntry: defaultAccess,
     },
     hr: {
       employees: defaultAccess,
       salaries: defaultAccess,
     },
     marine: {
-      vessels: viewOnly,
-      customers: viewOnly,
-      rentals: viewOnly,
+      vessels: defaultAccess,
+      customers: defaultAccess,
+      rentals: defaultAccess,
     },
     scrap: {
-      lands: viewOnly,
-      equipment: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: true }, // Manage equipment but can't delete
+      lands: defaultAccess,
+      equipment: defaultAccess,
     },
     warehouse: {
-      inventory: { canView: true, canCreate: true, canEdit: true, canDelete: true, hideTotals: false }, // Full control over inventory only
-      sales: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can record but not edit/delete sales
+      inventory: { canView: true, canCreate: true, canEdit: true, canDelete: true, hideTotals: false }, // Full control over inventory
+      sales: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can record sales
     },
     settings: defaultAccess,
   },
@@ -249,4 +249,46 @@ export function getMaskedValue(value: any, role: string): string {
     return value?.toString() || '0'
   }
   return '***'
+}
+
+/**
+ * Get the default landing route for a role.
+ * Restricted roles are redirected to their allowed section instead of the dashboard.
+ */
+export function getDefaultRoute(role: string): string {
+  const normalizedRole = role?.toLowerCase()
+  switch (normalizedRole) {
+    case 'accountant':
+      return '/dashboard/finance/invoices'
+    case 'storekeeper':
+      return '/dashboard/marine/inventory'
+    default:
+      return '/dashboard'
+  }
+}
+
+/**
+ * Get the allowed route prefixes for restricted roles.
+ * Returns null if all routes are allowed (admin, hr).
+ * Common routes (settings, profile) are always allowed for all roles.
+ */
+export function getAllowedRoutes(role: string): string[] | null {
+  const normalizedRole = role?.toLowerCase()
+  switch (normalizedRole) {
+    case 'accountant':
+      return ['/dashboard/finance', '/dashboard/settings', '/dashboard/profile']
+    case 'storekeeper':
+      return ['/dashboard/marine/inventory', '/dashboard/settings', '/dashboard/profile']
+    default:
+      return null // null means all routes are allowed
+  }
+}
+
+/**
+ * Check if a given pathname is allowed for a role.
+ */
+export function isRouteAllowed(role: string, pathname: string): boolean {
+  const allowedRoutes = getAllowedRoutes(role)
+  if (allowedRoutes === null) return true // No restrictions
+  return allowedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
 }

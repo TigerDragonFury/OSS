@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getDefaultRoute } from '@/lib/auth/rolePermissions'
 import { Ship, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -82,7 +83,8 @@ export default function LoginPage() {
         // Ignore if last_login column doesn't exist
       }
 
-      router.push('/dashboard')
+      // Redirect to role-appropriate default page
+      router.push(getDefaultRoute(userData.role))
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'An error occurred during login')

@@ -62,14 +62,14 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Expenses</h1>
           <p className="text-gray-600 mt-1">Track all company expenses</p>
         </div>
         <button
           onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center w-full sm:w-auto justify-center"
         >
           <Plus className="h-5 w-5 mr-2" />
           Add Expense
@@ -97,6 +97,7 @@ export default function ExpensesPage() {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -168,6 +169,7 @@ export default function ExpensesPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {expenses?.length === 0 && (
             <div className="text-center py-12">
@@ -261,13 +263,13 @@ function ExpenseForm({ expense, onClose, companies }: { expense?: any, onClose: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-6">{expense ? 'Edit Expense' : 'Add Expense'}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
                 <select

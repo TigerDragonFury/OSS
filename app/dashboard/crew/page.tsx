@@ -25,14 +25,14 @@ export default async function CrewAssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Crew Assignments</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Crew Assignments</h1>
           <p className="text-gray-600 mt-1">Manage vessel crew assignments and rotations</p>
         </div>
         <Link
           href="/dashboard/crew/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center"
         >
           <Plus className="h-5 w-5" />
           New Assignment
@@ -105,6 +105,7 @@ export default async function CrewAssignmentsPage() {
 
       {/* Assignments Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -181,6 +182,7 @@ export default async function CrewAssignmentsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

@@ -143,9 +143,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </NavSection>
           )}
 
-          <NavSection label="Logistics">
-            <NavItem href="/dashboard/trailers" icon={Truck} label="Trailers" active={is('/dashboard/trailers')} />
-          </NavSection>
+          {canAccess(['trailers']) && (
+            <NavSection label="Logistics">
+              <NavItem href="/dashboard/trailers" icon={Truck} label="Trailers" active={is('/dashboard/trailers')} />
+            </NavSection>
+          )}
 
           {canAccess(['finance', 'expenses']) && (
             <NavSection label="Finance">

@@ -13,6 +13,7 @@ export interface ModuleAccess {
 
 export interface RolePermissions {
   dashboard: ModuleAccess
+  trailers: ModuleAccess
   finance: {
     bankAccounts: ModuleAccess
     expenses: ModuleAccess
@@ -69,6 +70,7 @@ const viewOnly: ModuleAccess = {
 export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   admin: {
     dashboard: fullAccess,
+    trailers: fullAccess,
     finance: {
       bankAccounts: fullAccess,
       expenses: fullAccess,
@@ -100,6 +102,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
 
   hr: {
     dashboard: { ...viewOnly, hideTotals: true },
+    trailers: defaultAccess,
     finance: {
       bankAccounts: defaultAccess,
       expenses: defaultAccess,
@@ -131,6 +134,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
 
   accountant: {
     dashboard: { ...viewOnly, hideTotals: false },
+    trailers: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
     finance: {
       bankAccounts: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can't edit bank accounts
       expenses: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can edit but not delete
@@ -162,6 +166,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
 
   storekeeper: {
     dashboard: { ...viewOnly, hideTotals: true },
+    trailers: defaultAccess,
     finance: {
       bankAccounts: defaultAccess,
       expenses: defaultAccess,

@@ -11,24 +11,45 @@ import {
 import { ROLE_PERMISSIONS } from '@/lib/auth/rolePermissions'
 
 const MODULE_LABELS: Record<string, string> = {
-  'finance.bankAccounts': 'Bank Accounts',
-  'finance.expenses': 'Expenses',
-  'finance.reports': 'Reports',
-  'finance.quickEntry': 'Quick Entry',
-  'finance.quotations': 'Quotations',
-  'finance.income': 'Income',
-  'finance.invoices': 'Invoices',
-  'hr.employees': 'Employees',
-  'hr.salaries': 'Salaries',
-  'marine.vessels': 'Vessels',
-  'marine.customers': 'Customers',
-  'marine.rentals': 'Rentals',
-  'scrap.lands': 'Scrap Lands',
-  'scrap.equipment': 'Equipment',
-  'warehouse.inventory': 'Inventory',
-  'warehouse.sales': 'Sales',
-  'trailers': 'Trailers / Logistics',
-  'settings': 'Settings',
+  // ── General ──────────────────────────────────────────────────
+  'dashboard':              'Dashboard',
+  'companies':              'Companies',
+  'profile':                'My Profile',
+  // ── Marine ───────────────────────────────────────────────────
+  'marine.vessels':         'Vessels',
+  'marine.warehouses':      'Warehouses',
+  'marine.inventory':       'Marine Inventory',
+  'marine.equipment':       'Equipment Tracking',
+  'marine.requisitions':    'Requisitions',
+  'marine.overhauls':       'Overhauls',
+  'marine.maintenance':     'Maintenance',
+  'marine.fuel':            'Fuel Records',
+  'marine.customers':       'Marine Customers',
+  'marine.rentals':         'Vessel Rentals',
+  // ── Rentals ──────────────────────────────────────────────────
+  'rentals.bookings':       'Rental Bookings',
+  'rentals.customers':      'Rental Customers',
+  'rentals.payments':       'Rental Payments',
+  // ── Scrap ────────────────────────────────────────────────────
+  'scrap.lands':            'Scrap Lands',
+  'scrap.equipment':        'Scrap Equipment',
+  // ── Logistics ────────────────────────────────────────────────
+  'trailers':               'Trailers / Logistics',
+  // ── Finance ──────────────────────────────────────────────────
+  'finance.quickEntry':     'Quick Entry',
+  'finance.quotations':     'Quotations',
+  'finance.invoices':       'Invoices',
+  'finance.income':         'Income',
+  'finance.expenses':       'Expenses',
+  'finance.bankAccounts':   'Bank Accounts',
+  'finance.reports':        'Reports',
+  // ── Crew & HR ────────────────────────────────────────────────
+  'crew.assignments':       'Crew Assignments',
+  'crew.certifications':    'Crew Certifications',
+  'hr.employees':           'Employees',
+  'hr.salaries':            'Salaries',
+  // ── System ───────────────────────────────────────────────────
+  'settings':               'Settings',
 }
 
 const ROLES = ['admin', 'accountant', 'hr', 'storekeeper']

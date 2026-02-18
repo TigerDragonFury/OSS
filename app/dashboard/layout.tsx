@@ -77,6 +77,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return canAccessModule(userRole, modulePath)
   }, [user, userRole, dbRolePerms])
 
+  const canAccessAny = useCallback((...keys: string[][]) =>
+    keys.some(k => canAccess(k)), [canAccess])
+
   // Redirect non-admin users away from the /dashboard overview page
   useEffect(() => {
     if (loading || !user) return
@@ -136,8 +139,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isAdmin && (
               <NavItem href="/dashboard" icon={BarChart3} label="Dashboard" active={exact('/dashboard')} />
             )}
-            <NavItem href="/dashboard/companies" icon={Building2} label="Companies" active={is('/dashboard/companies')} />
-            {(user?.role === 'admin' || user?.roles?.includes('admin')) && (
+            {canAccess(['companies']) && (
+              <NavItem href="/dashboard/companies" icon={Building2} label="Companies" active={is('/dashboard/companies')} />
+            )}
+            {isAdmin && (
               <>
                 <NavItem href="/dashboard/admin/sync-expenses" icon={RefreshCw} label="Sync Expenses" active={is('/dashboard/admin/sync-expenses')} />
                 <NavItem href="/dashboard/admin/sync-tonnage" icon={RefreshCw} label="Sync Tonnage" active={is('/dashboard/admin/sync-tonnage')} />
@@ -145,37 +150,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </NavSection>
 
-          {canAccess(['marine', 'vessels']) && (
+          {canAccessAny(['marine','vessels'], ['marine','warehouses'], ['marine','inventory'], ['marine','equipment'], ['marine','requisitions'], ['marine','overhauls'], ['marine','maintenance'], ['marine','fuel'], ['marine','customers'], ['marine','rentals']) && (
             <NavSection label="Marine">
-              <NavItem href="/dashboard/marine/vessels" icon={Ship} label="Vessels" active={is('/dashboard/marine/vessels')} />
-              {canAccess(['warehouse', 'warehouses']) && (
+              {canAccess(['marine', 'vessels']) && (
+                <NavItem href="/dashboard/marine/vessels" icon={Ship} label="Vessels" active={is('/dashboard/marine/vessels')} />
+              )}
+              {canAccess(['marine', 'warehouses']) && (
                 <NavItem href="/dashboard/marine/warehouses" icon={Warehouse} label="Warehouses" active={is('/dashboard/marine/warehouses')} />
               )}
-              {canAccess(['warehouse', 'inventory']) && (
+              {canAccess(['marine', 'inventory']) && (
                 <NavItem href="/dashboard/marine/inventory" icon={Box} label="Inventory" active={is('/dashboard/marine/inventory')} />
               )}
-              {canAccess(['warehouse', 'equipment']) && (
+              {canAccess(['marine', 'equipment']) && (
                 <NavItem href="/dashboard/marine/equipment-tracking" icon={Wrench} label="Equipment" active={is('/dashboard/marine/equipment-tracking')} />
               )}
-              <NavItem href="/dashboard/marine/requisitions" icon={ClipboardList} label="Requisitions" active={is('/dashboard/marine/requisitions')} />
-              <NavItem href="/dashboard/marine/overhauls" icon={Settings} label="Overhauls" active={is('/dashboard/marine/overhauls')} />
-              <NavItem href="/dashboard/marine/maintenance" icon={Wrench} label="Maintenance" active={is('/dashboard/marine/maintenance')} />
-              <NavItem href="/dashboard/marine/fuel" icon={Fuel} label="Fuel Records" active={is('/dashboard/marine/fuel')} />
+              {canAccess(['marine', 'requisitions']) && (
+                <NavItem href="/dashboard/marine/requisitions" icon={ClipboardList} label="Requisitions" active={is('/dashboard/marine/requisitions')} />
+              )}
+              {canAccess(['marine', 'overhauls']) && (
+                <NavItem href="/dashboard/marine/overhauls" icon={Settings} label="Overhauls" active={is('/dashboard/marine/overhauls')} />
+              )}
+              {canAccess(['marine', 'maintenance']) && (
+                <NavItem href="/dashboard/marine/maintenance" icon={Wrench} label="Maintenance" active={is('/dashboard/marine/maintenance')} />
+              )}
+              {canAccess(['marine', 'fuel']) && (
+                <NavItem href="/dashboard/marine/fuel" icon={Fuel} label="Fuel Records" active={is('/dashboard/marine/fuel')} />
+              )}
             </NavSection>
           )}
 
-          {canAccess(['marine', 'rentals']) && (
+          {canAccessAny(['rentals','bookings'], ['rentals','customers'], ['rentals','payments']) && (
             <NavSection label="Rentals">
-              <NavItem href="/dashboard/rentals" icon={Calendar} label="Bookings" active={exact('/dashboard/rentals')} />
-              <NavItem href="/dashboard/rentals/customers" icon={Building2} label="Customers" active={is('/dashboard/rentals/customers')} />
-              <NavItem href="/dashboard/rentals/payments" icon={DollarSign} label="Payments" active={is('/dashboard/rentals/payments')} />
+              {canAccess(['rentals', 'bookings']) && (
+                <NavItem href="/dashboard/rentals" icon={Calendar} label="Bookings" active={exact('/dashboard/rentals')} />
+              )}
+              {canAccess(['rentals', 'customers']) && (
+                <NavItem href="/dashboard/rentals/customers" icon={Building2} label="Customers" active={is('/dashboard/rentals/customers')} />
+              )}
+              {canAccess(['rentals', 'payments']) && (
+                <NavItem href="/dashboard/rentals/payments" icon={DollarSign} label="Payments" active={is('/dashboard/rentals/payments')} />
+              )}
             </NavSection>
           )}
 
-          {canAccess(['scrap', 'lands']) && (
+          {canAccessAny(['scrap','lands'], ['scrap','equipment']) && (
             <NavSection label="Scrap">
-              <NavItem href="/dashboard/scrap/lands" icon={LandPlot} label="Land Purchases" active={is('/dashboard/scrap/lands')} />
-              <NavItem href="/dashboard/scrap/equipment" icon={Package} label="Equipment" active={is('/dashboard/scrap/equipment')} />
+              {canAccess(['scrap', 'lands']) && (
+                <NavItem href="/dashboard/scrap/lands" icon={LandPlot} label="Land Purchases" active={is('/dashboard/scrap/lands')} />
+              )}
+              {canAccess(['scrap', 'equipment']) && (
+                <NavItem href="/dashboard/scrap/equipment" icon={Package} label="Equipment" active={is('/dashboard/scrap/equipment')} />
+              )}
             </NavSection>
           )}
 
@@ -185,24 +210,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </NavSection>
           )}
 
-          {canAccess(['finance', 'expenses']) && (
+          {canAccessAny(['finance','quickEntry'], ['finance','quotations'], ['finance','invoices'], ['finance','income'], ['finance','expenses'], ['finance','bankAccounts'], ['finance','reports']) && (
             <NavSection label="Finance">
-              <NavItem href="/dashboard/finance/quick-entry" icon={Plus} label="Quick Entry" active={is('/dashboard/finance/quick-entry')} />
-              <NavItem href="/dashboard/finance/quotations" icon={ClipboardCheck} label="Quotations" active={is('/dashboard/finance/quotations')} />
-              <NavItem href="/dashboard/finance/invoices" icon={FileText} label="Invoices" active={is('/dashboard/finance/invoices')} />
-              <NavItem href="/dashboard/finance/income" icon={ArrowDownCircle} label="Income" active={is('/dashboard/finance/income')} />
-              <NavItem href="/dashboard/finance/expenses" icon={DollarSign} label="Expenses" active={is('/dashboard/finance/expenses') && !pathname?.includes('import')} />
-              <NavItem href="/dashboard/finance/bank-accounts" icon={Building2} label="Bank Accounts" active={is('/dashboard/finance/bank-accounts')} />
-              <NavItem href="/dashboard/finance/reports" icon={TrendingUp} label="Reports" active={is('/dashboard/finance/reports')} />
+              {canAccess(['finance', 'quickEntry']) && (
+                <NavItem href="/dashboard/finance/quick-entry" icon={Plus} label="Quick Entry" active={is('/dashboard/finance/quick-entry')} />
+              )}
+              {canAccess(['finance', 'quotations']) && (
+                <NavItem href="/dashboard/finance/quotations" icon={ClipboardCheck} label="Quotations" active={is('/dashboard/finance/quotations')} />
+              )}
+              {canAccess(['finance', 'invoices']) && (
+                <NavItem href="/dashboard/finance/invoices" icon={FileText} label="Invoices" active={is('/dashboard/finance/invoices')} />
+              )}
+              {canAccess(['finance', 'income']) && (
+                <NavItem href="/dashboard/finance/income" icon={ArrowDownCircle} label="Income" active={is('/dashboard/finance/income')} />
+              )}
+              {canAccess(['finance', 'expenses']) && (
+                <NavItem href="/dashboard/finance/expenses" icon={DollarSign} label="Expenses" active={is('/dashboard/finance/expenses') && !pathname?.includes('import')} />
+              )}
+              {canAccess(['finance', 'bankAccounts']) && (
+                <NavItem href="/dashboard/finance/bank-accounts" icon={Building2} label="Bank Accounts" active={is('/dashboard/finance/bank-accounts')} />
+              )}
+              {canAccess(['finance', 'reports']) && (
+                <NavItem href="/dashboard/finance/reports" icon={TrendingUp} label="Reports" active={is('/dashboard/finance/reports')} />
+              )}
             </NavSection>
           )}
 
-          {canAccess(['hr', 'employees']) && (
+          {canAccessAny(['crew','assignments'], ['crew','certifications'], ['hr','employees'], ['hr','salaries']) && (
             <NavSection label="Crew & HR">
-              <NavItem href="/dashboard/crew" icon={UserCheck} label="Assignments" active={exact('/dashboard/crew')} />
-              <NavItem href="/dashboard/crew/certifications" icon={Award} label="Certifications" active={is('/dashboard/crew/certifications')} />
-              <NavItem href="/dashboard/hr/employees" icon={Users} label="Employees" active={is('/dashboard/hr/employees')} />
-              <NavItem href="/dashboard/hr/salaries" icon={DollarSign} label="Salaries" active={is('/dashboard/hr/salaries')} />
+              {canAccess(['crew', 'assignments']) && (
+                <NavItem href="/dashboard/crew" icon={UserCheck} label="Assignments" active={exact('/dashboard/crew')} />
+              )}
+              {canAccess(['crew', 'certifications']) && (
+                <NavItem href="/dashboard/crew/certifications" icon={Award} label="Certifications" active={is('/dashboard/crew/certifications')} />
+              )}
+              {canAccess(['hr', 'employees']) && (
+                <NavItem href="/dashboard/hr/employees" icon={Users} label="Employees" active={is('/dashboard/hr/employees')} />
+              )}
+              {canAccess(['hr', 'salaries']) && (
+                <NavItem href="/dashboard/hr/salaries" icon={DollarSign} label="Salaries" active={is('/dashboard/hr/salaries')} />
+              )}
             </NavSection>
           )}
         </nav>

@@ -8,7 +8,7 @@ import {
   Ship, LandPlot, DollarSign, Users, FileText, Package, TrendingUp, Settings,
   BarChart3, Warehouse, Box, ClipboardList, Wrench, Upload, LogOut, User,
   Calendar, UserCheck, Fuel, Award, Bell, ChevronDown, Building2, RefreshCw,
-  Plus, ClipboardCheck, ArrowDownCircle, Anchor, ChevronRight,
+  Plus, ClipboardCheck, ArrowDownCircle, Anchor, ChevronRight, Truck,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -142,6 +142,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <NavItem href="/dashboard/scrap/equipment" icon={Package} label="Equipment" active={is('/dashboard/scrap/equipment')} />
             </NavSection>
           )}
+
+          <NavSection label="Logistics">
+            <NavItem href="/dashboard/trailers" icon={Truck} label="Trailers" active={is('/dashboard/trailers')} />
+          </NavSection>
 
           {canAccess(['finance', 'expenses']) && (
             <NavSection label="Finance">

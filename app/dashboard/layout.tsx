@@ -72,8 +72,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const canAccess = useCallback((modulePath: string[]) => {
     if (user?.role === 'admin' || user?.roles?.includes('admin')) return true
     const key = modulePath.join('.')
-    const dbLevel = dbRolePerms?.[userRole]?.[key]
-    if (dbLevel !== undefined) return dbLevel !== 'none'
+    // If DB has a row for this role, use it exclusively (missing key = blocked)
+    if (dbRolePerms?.[userRole] !== undefined) {
+      const dbLevel = dbRolePerms[userRole][key]
+      return (dbLevel ?? 'none') !== 'none'
+    }
+    // No DB row yet → fall back to static ROLE_PERMISSIONS
     return canAccessModule(userRole, modulePath)
   }, [user, userRole, dbRolePerms])
 

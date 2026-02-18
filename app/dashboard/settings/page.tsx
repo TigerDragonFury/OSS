@@ -236,7 +236,15 @@ export default function SettingsPage() {
     if (permsSeeded) return
     const moduleKeys = Object.keys(MODULE_LABELS)
     if (dbRolePerms && Object.keys(dbRolePerms).length > 0) {
-      setEditPerms(dbRolePerms)
+      // Fill any keys missing from DB rows with 'none'
+      const filled: Record<string, Record<string, string>> = {}
+      for (const role of ROLES) {
+        filled[role] = {}
+        for (const key of moduleKeys) {
+          filled[role][key] = dbRolePerms[role]?.[key] ?? 'none'
+        }
+      }
+      setEditPerms(filled)
       setPermsSeeded(true)
     } else if (!permsLoading) {
       // DB empty – seed from static ROLE_PERMISSIONS

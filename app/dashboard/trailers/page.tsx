@@ -179,7 +179,7 @@ export default function TrailersPage() {
   })
 
   const deleteJob = useMutation({
-    mutationFn: (id: string) => supabase.from('haulage_jobs').delete().eq('id', id),
+    mutationFn: async (id: string) => { await supabase.from('haulage_jobs').delete().eq('id', id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['haulage_jobs'] })
   })
 
@@ -207,7 +207,7 @@ export default function TrailersPage() {
   })
 
   const deleteRental = useMutation({
-    mutationFn: (id: string) => supabase.from('trailer_rentals').delete().eq('id', id),
+    mutationFn: async (id: string) => { await supabase.from('trailer_rentals').delete().eq('id', id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trailer_rentals'] })
   })
 
@@ -233,7 +233,7 @@ export default function TrailersPage() {
   })
 
   const deleteExpense = useMutation({
-    mutationFn: (id: string) => supabase.from('trailer_expenses').delete().eq('id', id),
+    mutationFn: async (id: string) => { await supabase.from('trailer_expenses').delete().eq('id', id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trailer_expenses'] })
   })
 
@@ -259,7 +259,7 @@ export default function TrailersPage() {
   })
 
   const deleteTrailer = useMutation({
-    mutationFn: (id: string) => supabase.from('trailers').delete().eq('id', id),
+    mutationFn: async (id: string) => { await supabase.from('trailers').delete().eq('id', id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trailers'] })
   })
 
@@ -600,7 +600,7 @@ export default function TrailersPage() {
           trailers={trailers}
           bankAccounts={bankAccounts}
           onClose={() => setJobModal({ open: false })}
-          onSave={(form) => saveJob.mutate(form)}
+          onSave={(form: any) => saveJob.mutate(form)}
           saving={saveJob.isPending}
         />
       )}
@@ -611,7 +611,7 @@ export default function TrailersPage() {
           data={rentalModal.data}
           bankAccounts={bankAccounts}
           onClose={() => setRentalModal({ open: false })}
-          onSave={(form) => saveRental.mutate(form)}
+          onSave={(form: any) => saveRental.mutate(form)}
           saving={saveRental.isPending}
         />
       )}
@@ -623,7 +623,7 @@ export default function TrailersPage() {
           trailers={trailers}
           bankAccounts={bankAccounts}
           onClose={() => setExpenseModal({ open: false })}
-          onSave={(form) => saveExpense.mutate(form)}
+          onSave={(form: any) => saveExpense.mutate(form)}
           saving={saveExpense.isPending}
         />
       )}
@@ -633,7 +633,7 @@ export default function TrailersPage() {
         <FleetModal
           data={fleetModal.data}
           onClose={() => setFleetModal({ open: false })}
-          onSave={(form) => saveTrailer.mutate(form)}
+          onSave={(form: any) => saveTrailer.mutate(form)}
           saving={saveTrailer.isPending}
         />
       )}

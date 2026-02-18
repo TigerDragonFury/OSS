@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { canAccessModule } from '@/lib/auth/rolePermissions'
 import { createClient } from '@/lib/supabase/client'
@@ -12,7 +12,7 @@ import {
   Calendar, UserCheck, Fuel, Award, Bell, ChevronDown, Building2, RefreshCw,
   Plus, ClipboardCheck, ArrowDownCircle, Anchor, ChevronRight, Truck,
 } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 function NavItem({ href, icon: Icon, label, active }: {
   href: string; icon: any; label: string; active: boolean
@@ -49,11 +49,13 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const isAdmin = user?.role === 'admin' || user?.roles?.includes('admin')
 
   const supabaseLayout = createClient()
   const { data: dbRolePerms } = useQuery({
@@ -74,6 +76,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (dbLevel !== undefined) return dbLevel !== 'none'
     return canAccessModule(userRole, modulePath)
   }, [user, userRole, dbRolePerms])
+
+  // Redirect non-admin users away from the /dashboard overview page
+  useEffect(() => {
+    if (loading || !user) return
+    if (pathname !== '/dashboard') return
+    const role = user?.role || user?.roles?.[0] || ''
+    if (role === 'admin') return
+    const redirectMap: Record<string, string> = {
+      accountant:  '/dashboard/finance/quick-entry',
+      hr:          '/dashboard/hr/employees',
+      storekeeper: '/dashboard/marine/inventory',
+    }
+    router.replace(redirectMap[role] ?? '/dashboard/finance/quick-entry')
+  }, [loading, user, pathname, router])
 
   const is = (path: string) => pathname === path || pathname?.startsWith(path + '/')
   const exact = (path: string) => pathname === path
@@ -117,7 +133,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <NavSection label="General">
-            <NavItem href="/dashboard" icon={BarChart3} label="Dashboard" active={exact('/dashboard')} />
+            {isAdmin && (
+              <NavItem href="/dashboard" icon={BarChart3} label="Dashboard" active={exact('/dashboard')} />
+            )}
             <NavItem href="/dashboard/companies" icon={Building2} label="Companies" active={is('/dashboard/companies')} />
             {(user?.role === 'admin' || user?.roles?.includes('admin')) && (
               <>

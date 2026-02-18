@@ -46,7 +46,7 @@ INSERT INTO role_permissions (role, permissions) VALUES
   "settings": "full"
 }'),
 ('accountant', '{
-  "dashboard": "view",
+  "dashboard": "none",
   "trailers": "edit",
   "finance.bankAccounts": "create",
   "finance.expenses": "edit",
@@ -67,7 +67,7 @@ INSERT INTO role_permissions (role, permissions) VALUES
   "settings": "view"
 }'),
 ('hr', '{
-  "dashboard": "view",
+  "dashboard": "none",
   "trailers": "none",
   "finance.bankAccounts": "none",
   "finance.expenses": "none",
@@ -88,7 +88,7 @@ INSERT INTO role_permissions (role, permissions) VALUES
   "settings": "view"
 }'),
 ('storekeeper', '{
-  "dashboard": "view",
+  "dashboard": "none",
   "trailers": "none",
   "finance.bankAccounts": "none",
   "finance.expenses": "none",
@@ -109,3 +109,9 @@ INSERT INTO role_permissions (role, permissions) VALUES
   "settings": "none"
 }')
 ON CONFLICT (role) DO NOTHING;
+
+-- ── Update existing rows to remove dashboard access for non-admin ─────────────
+UPDATE role_permissions
+SET permissions = permissions || '{"dashboard": "none"}'::jsonb,
+    updated_at  = NOW()
+WHERE role IN ('accountant', 'hr', 'storekeeper');

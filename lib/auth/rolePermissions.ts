@@ -101,7 +101,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   },
 
   hr: {
-    dashboard: { ...viewOnly, hideTotals: true },
+    dashboard: defaultAccess,
     trailers: defaultAccess,
     finance: {
       bankAccounts: defaultAccess,
@@ -133,7 +133,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   },
 
   accountant: {
-    dashboard: { ...viewOnly, hideTotals: false },
+    dashboard: defaultAccess,
     trailers: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
     finance: {
       bankAccounts: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false }, // Can't edit bank accounts
@@ -165,7 +165,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
   },
 
   storekeeper: {
-    dashboard: { ...viewOnly, hideTotals: true },
+    dashboard: defaultAccess,
     trailers: defaultAccess,
     finance: {
       bankAccounts: defaultAccess,

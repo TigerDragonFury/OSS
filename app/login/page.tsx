@@ -59,7 +59,14 @@ export default function LoginPage() {
         await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', user.id)
       } catch (_) {}
 
-      router.push('/dashboard')
+      const role = user.role || 'viewer'
+      const redirectMap: Record<string, string> = {
+        admin:       '/dashboard',
+        accountant:  '/dashboard/finance/quick-entry',
+        hr:          '/dashboard/hr/employees',
+        storekeeper: '/dashboard/marine/inventory',
+      }
+      router.push(redirectMap[role] ?? '/dashboard/finance/quick-entry')
     } catch (err: any) {
       setError(err.message || 'An error occurred during login')
     } finally {

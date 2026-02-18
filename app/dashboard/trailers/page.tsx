@@ -186,18 +186,18 @@ export default function TrailersPage() {
           const route = `${form.origin} → ${form.destination}`
           const incRow: Record<string, unknown> = {
             income_date: form.job_date,
-            income_type: 'haulage',
+            income_type: 'other',
             source_type: 'other',
             amount: charge,
-            description: `Haulage Job: ${form.client_name || form.client_name} — ${route}${form.cargo_description ? ' (' + form.cargo_description + ')' : ''}`,
+            description: `Haulage Job: ${form.client_name} — ${route}${form.cargo_description ? ' (' + form.cargo_description + ')' : ''}`,
             payment_method: 'transfer',
             bank_account_id: form.bank_account_id || null,
             reference_id: jobId,
           }
           const { error: incErr } = await supabase.from('income_records').insert([incRow])
           if (incErr) {
-            const { bank_account_id: _b, reference_id: _r, ...base } = incRow as any
-            await supabase.from('income_records').insert([{ ...base, reference_id: jobId }])
+            const { bank_account_id: _b, ...base } = incRow as any
+            await supabase.from('income_records').insert([base])
           }
         }
       }

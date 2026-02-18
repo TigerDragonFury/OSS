@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { Plus, Edit2, Trash2, CheckSquare, Clock, AlertCircle, Calendar } from 'lucide-react'
@@ -12,6 +14,13 @@ export default function TaskAssignmentsPage({ params }: { params: Promise<{ id: 
   
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   // Vessel Tasks Query (from new schema)
   const { data: vesselTasks } = useQuery({
@@ -240,25 +249,29 @@ export default function TaskAssignmentsPage({ params }: { params: Promise<{ id: 
                                   <CheckSquare className="h-4 w-4" />
                                 </button>
                               )}
-                              <button
-                                onClick={() => {
-                                  setEditingTask(task)
-                                  setShowTaskForm(true)
-                                }}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm('Delete this task?')) {
-                                    deleteTask.mutate(task.id)
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => {
+                                    setEditingTask(task)
+                                    setShowTaskForm(true)
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this task?')) {
+                                      deleteTask.mutate(task.id)
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

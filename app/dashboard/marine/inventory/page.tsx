@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Package, AlertTriangle, Search, Edit2, Trash2, ClipboardList } from 'lucide-react'
@@ -20,6 +22,13 @@ export default function InventoryPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['warehouse', 'inventory'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['warehouse', 'inventory'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['warehouse', 'inventory'], 'create')
 
   const { data: inventory, isLoading } = useQuery({
     queryKey: ['marine_inventory'],
@@ -192,13 +201,15 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold text-gray-900">Marine Inventory</h1>
           <p className="text-gray-600 mt-1">Track equipment, spare parts, and materials across warehouses</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Item
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Item
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -241,7 +252,7 @@ export default function InventoryPage() {
       )}
 
       {/* Bulk Actions */}
-      {selectedItems.size > 0 && (
+      {selectedItems.size > 0 && canDelete && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-blue-700 font-medium">
@@ -430,20 +441,24 @@ export default function InventoryPage() {
                         >
                           <ClipboardList className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => setEditingItem(item)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title="Edit"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => setEditingItem(item)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -761,7 +776,7 @@ function InventoryForm({ onClose, warehouses, vessels, item }: { onClose: () => 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

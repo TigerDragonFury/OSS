@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Building2, Search, Edit2, Trash2, Phone, Mail, MapPin } from 'lucide-react'
@@ -16,6 +18,13 @@ export default function CustomersPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'customers'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'customers'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'customers'], 'create')
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['customers'],
@@ -72,13 +81,15 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-600 mt-1">Manage vessel rental customers and clients</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Customer
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Customer
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -224,18 +235,22 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setEditingCustomer(customer)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(customer)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditingCustomer(customer)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(customer)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -475,7 +490,7 @@ function CustomerForm({ onClose, customer }: { onClose: () => void; customer?: a
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit (Đ)</label>
                 <input
                   type="number"
                   value={formData.credit_limit}

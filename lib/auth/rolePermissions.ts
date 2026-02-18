@@ -18,6 +18,9 @@ export interface RolePermissions {
     expenses: ModuleAccess
     reports: ModuleAccess & { hideNetProfit?: boolean; hideAllTimeStats?: boolean }
     quickEntry: ModuleAccess
+    quotations: ModuleAccess
+    income: ModuleAccess
+    invoices: ModuleAccess
   }
   hr: {
     employees: ModuleAccess
@@ -71,6 +74,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
       expenses: fullAccess,
       reports: { ...fullAccess, hideNetProfit: false, hideAllTimeStats: false },
       quickEntry: fullAccess,
+      quotations: fullAccess,
+      income: fullAccess,
+      invoices: fullAccess,
     },
     hr: {
       employees: fullAccess,
@@ -99,6 +105,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
       expenses: defaultAccess,
       reports: { ...defaultAccess, hideNetProfit: true, hideAllTimeStats: true },
       quickEntry: defaultAccess,
+      quotations: defaultAccess,
+      income: defaultAccess,
+      invoices: defaultAccess,
     },
     hr: {
       employees: fullAccess,
@@ -127,6 +136,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
       expenses: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false }, // Can edit but not delete
       reports: { ...viewOnly, hideNetProfit: true, hideAllTimeStats: true, canView: true }, // Can see transactions but not net profit
       quickEntry: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: false },
+      quotations: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
+      income: { canView: true, canCreate: false, canEdit: false, canDelete: false, hideTotals: false },
+      invoices: { canView: true, canCreate: true, canEdit: true, canDelete: false, hideTotals: false },
     },
     hr: {
       employees: viewOnly,
@@ -155,6 +167,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
       expenses: defaultAccess,
       reports: { ...defaultAccess, hideNetProfit: true, hideAllTimeStats: true },
       quickEntry: { canView: true, canCreate: true, canEdit: false, canDelete: false, hideTotals: true }, // Can record sales
+      quotations: defaultAccess,
+      income: defaultAccess,
+      invoices: defaultAccess,
     },
     hr: {
       employees: defaultAccess,

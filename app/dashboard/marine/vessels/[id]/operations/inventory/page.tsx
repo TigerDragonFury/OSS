@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { Plus, Edit2, Trash2, Package, Wrench, Archive } from 'lucide-react'
@@ -16,6 +18,13 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
   
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   // Vessel Data
   const { data: vessel } = useQuery({
@@ -150,7 +159,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
             <Package className="h-8 w-8 text-blue-600" />
             <div>
               <p className="text-sm text-gray-600">Inventory Usage Cost</p>
-              <p className="text-2xl font-bold text-gray-900">{totalInventoryCost.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalInventoryCost.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{inventoryUsage?.length || 0} transactions</p>
             </div>
           </div>
@@ -161,7 +170,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
             <Wrench className="h-8 w-8 text-red-600" />
             <div>
               <p className="text-sm text-gray-600">Replacement Cost</p>
-              <p className="text-2xl font-bold text-gray-900">{totalReplacementCost.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalReplacementCost.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{equipmentReplacements?.length || 0} replacements</p>
             </div>
           </div>
@@ -172,7 +181,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
             <Archive className="h-8 w-8 text-green-600" />
             <div>
               <p className="text-sm text-gray-600">Spares Inventory Value</p>
-              <p className="text-2xl font-bold text-gray-900">{totalSparesValue.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalSparesValue.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{sparesInventory?.length || 0} items</p>
             </div>
           </div>
@@ -437,7 +446,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-500">{spare.min_quantity}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900">{spare.unit_cost.toLocaleString()} AED</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{spare.unit_cost.toLocaleString()} Đ</td>
                             <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                               {(spare.quantity * spare.unit_cost).toLocaleString()} AED
                             </td>

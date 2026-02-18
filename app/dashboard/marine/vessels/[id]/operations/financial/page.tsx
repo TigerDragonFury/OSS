@@ -134,7 +134,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
             <Ship className="h-8 w-8 text-blue-600" />
             <div>
               <p className="text-sm text-gray-600">Purchase Price</p>
-              <p className="text-2xl font-bold text-gray-900">{purchasePrice.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{purchasePrice.toLocaleString()} Đ</p>
             </div>
           </div>
         </div>
@@ -144,7 +144,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
             <TrendingUp className="h-8 w-8 text-green-600" />
             <div>
               <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Đ</p>
             </div>
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
             <TrendingDown className="h-8 w-8 text-red-600" />
             <div>
               <p className="text-sm text-gray-600">Total Costs</p>
-              <p className="text-2xl font-bold text-red-600">{totalCosts.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-red-600">{totalCosts.toLocaleString()} Đ</p>
             </div>
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Package className="h-5 w-5 text-green-600" />
               <p className="text-sm font-medium text-gray-700">Equipment Sales</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{equipmentRevenue.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{equipmentRevenue.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{((equipmentRevenue / (totalRevenue || 1)) * 100).toFixed(1)}% of total revenue</p>
           </div>
 
@@ -194,7 +194,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Receipt className="h-5 w-5 text-green-600" />
               <p className="text-sm font-medium text-gray-700">Scrap Sales</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{scrapRevenue.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{scrapRevenue.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{((scrapRevenue / (totalRevenue || 1)) * 100).toFixed(1)}% of total revenue</p>
           </div>
 
@@ -203,7 +203,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Ship className="h-5 w-5 text-green-600" />
               <p className="text-sm font-medium text-gray-700">Rental Income</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{rentalIncome.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{rentalIncome.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{((rentalIncome / (totalRevenue || 1)) * 100).toFixed(1)}% of total revenue</p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Ship className="h-5 w-5 text-gray-600" />
               <p className="text-sm font-medium text-gray-700">Purchase Price</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{purchasePrice.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{purchasePrice.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{((purchasePrice / (totalCosts || 1)) * 100).toFixed(1)}% of total costs</p>
           </div>
 
@@ -230,7 +230,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Receipt className="h-5 w-5 text-red-600" />
               <p className="text-sm font-medium text-gray-700">Vessel Expenses</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{vesselExpensesTotal.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{vesselExpensesTotal.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{allExpenses?.vessel?.length || 0} transactions</p>
           </div>
 
@@ -239,7 +239,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Wrench className="h-5 w-5 text-red-600" />
               <p className="text-sm font-medium text-gray-700">Overhaul Costs</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{overhaulExpensesTotal.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{overhaulExpensesTotal.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{allExpenses?.overhaul?.length || 0} transactions</p>
           </div>
 
@@ -248,7 +248,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
               <Ship className="h-5 w-5 text-red-600" />
               <p className="text-sm font-medium text-gray-700">Movement Costs</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{movementCosts.toLocaleString()} AED</p>
+            <p className="text-2xl font-bold text-gray-900">{movementCosts.toLocaleString()} Đ</p>
             <p className="text-xs text-gray-500 mt-1">{movements?.length || 0} movements</p>
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function FinancialOverviewPage({ params }: { params: Promise<{ id
         <div className="mt-4 p-4 bg-red-100 rounded-lg border border-red-300">
           <div className="flex justify-between items-center">
             <p className="font-semibold text-red-900">Total Operational Expenses:</p>
-            <p className="text-xl font-bold text-red-900">{totalOperationalExpenses.toLocaleString()} AED</p>
+            <p className="text-xl font-bold text-red-900">{totalOperationalExpenses.toLocaleString()} Đ</p>
           </div>
         </div>
       </div>

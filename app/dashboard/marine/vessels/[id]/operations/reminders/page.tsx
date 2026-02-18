@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { Plus, Edit2, Trash2, Bell, Calendar, CheckCircle, AlertCircle } from 'lucide-react'
@@ -24,6 +26,13 @@ export default function RemindersPage({ params }: { params: Promise<{ id: string
   
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   // Vessel Reminders Query (from new schema)
   const { data: reminders } = useQuery({
@@ -93,16 +102,18 @@ export default function RemindersPage({ params }: { params: Promise<{ id: string
           <h1 className="text-2xl font-bold text-gray-900">Reminders</h1>
           <p className="text-gray-600">Track important deadlines, renewals, and upcoming tasks</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingReminder(null)
-            setShowReminderForm(true)
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5" />
-          Add Reminder
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => {
+              setEditingReminder(null)
+              setShowReminderForm(true)
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="h-5 w-5" />
+            Add Reminder
+          </button>
+        )}
       </div>
 
       {!reminders ? (
@@ -252,25 +263,29 @@ export default function RemindersPage({ params }: { params: Promise<{ id: string
                                   <CheckCircle className="h-4 w-4" />
                                 </button>
                               )}
-                              <button
-                                onClick={() => {
-                                  setEditingReminder(reminder)
-                                  setShowReminderForm(true)
-                                }}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm('Delete this reminder?')) {
-                                    deleteReminder.mutate(reminder.id)
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => {
+                                    setEditingReminder(reminder)
+                                    setShowReminderForm(true)
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this reminder?')) {
+                                      deleteReminder.mutate(reminder.id)
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

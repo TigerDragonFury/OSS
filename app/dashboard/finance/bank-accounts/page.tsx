@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { DollarSign, CreditCard, TrendingUp, TrendingDown, AlertCircle, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 
 interface BankAccount {
   account_id: string
@@ -30,6 +32,12 @@ export default function BankAccountsPage() {
   const [showReconcile, setShowReconcile] = useState<string | null>(null)
   const [showWithdrawal, setShowWithdrawal] = useState(false)
   const [newBalance, setNewBalance] = useState('')
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canCreate = hasModulePermission(userRole, ['finance', 'bank_accounts'], 'create')
+  const canEdit = hasModulePermission(userRole, ['finance', 'bank_accounts'], 'edit')
   
   const [withdrawalForm, setWithdrawalForm] = useState({
     from_account_id: '',
@@ -258,12 +266,16 @@ export default function BankAccountsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-              >
-                Create Account
-              </button>
+              {canCreate ? (
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                >
+                  Create Account
+                </button>
+              ) : (
+                <div className="text-sm text-gray-600">You don't have permission to create accounts</div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowNewAccount(false)}
@@ -330,7 +342,7 @@ export default function BankAccountsPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Đ) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -363,12 +375,16 @@ export default function BankAccountsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
-              >
-                Record Withdrawal
-              </button>
+              {canEdit ? (
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+                >
+                  Record Withdrawal
+                </button>
+              ) : (
+                <div className="text-sm text-gray-600">You don't have permission to record withdrawals</div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowWithdrawal(false)}

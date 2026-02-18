@@ -175,7 +175,7 @@ export default function RequisitionsPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Estimated Cost</p>
-                      <p className="font-medium">{req.estimated_cost?.toLocaleString() || 'N/A'} AED</p>
+                      <p className="font-medium">{req.estimated_cost?.toLocaleString() || 'N/A'} Đ</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Priority</p>
@@ -409,7 +409,7 @@ function RequisitionForm({ onClose, employees, vessels }: { onClose: () => void,
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

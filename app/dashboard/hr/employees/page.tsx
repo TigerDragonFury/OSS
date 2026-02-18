@@ -235,7 +235,7 @@ function EmployeeForm({ onClose, companies }: { onClose: () => void, companies: 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Salary (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Salary (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

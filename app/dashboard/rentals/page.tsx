@@ -61,6 +61,13 @@ export default function RentalsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Delete the auto-created income record for this rental first
+      await supabase
+        .from('income_records')
+        .delete()
+        .eq('reference_id', id)
+        .eq('income_type', 'vessel_rental')
+
       const { error } = await supabase
         .from('vessel_rentals')
         .delete()
@@ -532,7 +539,7 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (Đ)</label>
                 <input
                   type="number"
                   value={formData.daily_rate}
@@ -542,7 +549,7 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount (Đ)</label>
                 <input
                   type="number"
                   value={formData.total_amount}
@@ -551,7 +558,7 @@ function RentalForm({ onClose, rental, vessels, customers }: { onClose: () => vo
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deposit (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deposit (Đ)</label>
                 <input
                   type="number"
                   value={formData.deposit_amount}

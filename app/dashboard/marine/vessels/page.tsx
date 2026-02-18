@@ -119,7 +119,7 @@ export default function VesselsPage() {
                       {!hidePrices && (
                         <div>
                           <p className="text-sm text-gray-600">Purchase Price</p>
-                          <p className="font-medium">{vessel.purchase_price?.toLocaleString() || 'N/A'} AED</p>
+                          <p className="font-medium">{vessel.purchase_price?.toLocaleString() || 'N/A'} Đ</p>
                         </div>
                       )}
                       <div>
@@ -360,7 +360,7 @@ function VesselForm({ onClose, vessel }: { onClose: () => void, vessel?: any }) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Purchase Price (AED)
+                  Purchase Price (Đ)
                 </label>
                 <input
                   type="number"

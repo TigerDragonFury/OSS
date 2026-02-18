@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react'
@@ -19,6 +21,13 @@ export default function OverhaulsPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
   const { data: projects, isLoading } = useQuery({
     queryKey: ['vessel_overhaul_projects'],
     queryFn: async () => {
@@ -88,13 +97,15 @@ export default function OverhaulsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Overhaul Projects</h1>
           <p className="text-gray-600 mt-1">Track vessel overhaul progress and costs</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          New Project
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            New Project
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -143,11 +154,11 @@ export default function OverhaulsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Budget</p>
-                        <p className="font-medium">{project.total_budget?.toLocaleString() || 0} AED</p>
+                        <p className="font-medium">{project.total_budget?.toLocaleString() || 0} Đ</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Spent</p>
-                        <p className="font-medium text-red-600">{project.total_spent?.toLocaleString() || 0} AED</p>
+                        <p className="font-medium text-red-600">{project.total_spent?.toLocaleString() || 0} Đ</p>
                       </div>
                     </div>
 
@@ -197,29 +208,33 @@ export default function OverhaulsPage() {
                         </>
                       )}
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingProject(project)
-                        }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                        title="Edit project"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingProject(project)
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                          title="Edit project"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </button>
+                      )}
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(project)
-                        }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
-                        title="Delete project"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(project)
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+                          title="Delete project"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -405,7 +420,7 @@ function ProjectForm({ project, onClose, vessels }: { project?: any, onClose: ()
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Budget (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Budget (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

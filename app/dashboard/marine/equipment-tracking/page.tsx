@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Package, MapPin, AlertCircle, Wrench, TrendingUp } from 'lucide-react'
@@ -14,6 +16,11 @@ export default function EquipmentTrackingPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canCreate = hasModulePermission(userRole, ['warehouse', 'equipment'], 'create')
 
   const { data: equipment, isLoading } = useQuery({
     queryKey: ['equipment_tracking'],
@@ -92,13 +99,15 @@ export default function EquipmentTrackingPage() {
           <h1 className="text-3xl font-bold text-gray-900">Equipment Tracking</h1>
           <p className="text-gray-600 mt-1">Track individual equipment lifecycle from purchase to disposal</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Equipment
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Equipment
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -235,13 +244,13 @@ export default function EquipmentTrackingPage() {
                     {item.purchase_price && (
                       <div>
                         <p className="text-gray-600">Purchase Price</p>
-                        <p className="font-semibold text-gray-900">{item.purchase_price.toLocaleString()} AED</p>
+                        <p className="font-semibold text-gray-900">{item.purchase_price.toLocaleString()} Đ</p>
                       </div>
                     )}
                     {item.sale_price && (
                       <div>
                         <p className="text-gray-600">Sale Price</p>
-                        <p className="font-semibold text-green-600">{item.sale_price.toLocaleString()} AED</p>
+                        <p className="font-semibold text-green-600">{item.sale_price.toLocaleString()} Đ</p>
                       </div>
                     )}
                   </div>
@@ -450,7 +459,7 @@ function EquipmentForm({ onClose, warehouses, vessels }: { onClose: () => void, 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

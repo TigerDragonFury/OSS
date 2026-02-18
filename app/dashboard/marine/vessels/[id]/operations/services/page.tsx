@@ -173,7 +173,7 @@ export default function ServiceSchedulesPage({ params }: { params: Promise<{ id:
                           </div>
                           <div>
                             <p className="text-gray-600">Estimated Cost</p>
-                            <p className="font-medium">{schedule.estimated_cost?.toLocaleString() || 0} AED</p>
+                            <p className="font-medium">{schedule.estimated_cost?.toLocaleString() || 0} Đ</p>
                           </div>
                         </div>
                       </div>
@@ -260,7 +260,7 @@ export default function ServiceSchedulesPage({ params }: { params: Promise<{ id:
                           </div>
                           <div>
                             <p className="text-gray-600">Est. Cost</p>
-                            <p className="font-medium">{schedule.estimated_cost?.toLocaleString() || 0} AED</p>
+                            <p className="font-medium">{schedule.estimated_cost?.toLocaleString() || 0} Đ</p>
                           </div>
                           <div>
                             <p className="text-gray-600">Est. Duration</p>
@@ -458,7 +458,7 @@ function ServiceScheduleForm({ schedule, vesselId, onClose }: any) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

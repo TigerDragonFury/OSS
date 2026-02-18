@@ -2,6 +2,8 @@
 
 import React from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { Plus, Edit2, Trash2, Package, Recycle, Settings } from 'lucide-react'
@@ -16,6 +18,13 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
   
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   // Equipment Sales Query
   const { data: equipmentSales } = useQuery({
@@ -251,7 +260,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
             <Package className="h-8 w-8 text-green-600" />
             <div>
               <p className="text-sm text-gray-600">Equipment Sales Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{totalEquipmentRevenue.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalEquipmentRevenue.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{equipmentSales?.length || 0} sales</p>
             </div>
           </div>
@@ -262,7 +271,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
             <Recycle className="h-8 w-8 text-yellow-600" />
             <div>
               <p className="text-sm text-gray-600">Scrap Sales Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{totalScrapRevenue.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalScrapRevenue.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{scrapSales?.length || 0} sales</p>
             </div>
           </div>
@@ -273,7 +282,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
             <Settings className="h-8 w-8 text-blue-600" />
             <div>
               <p className="text-sm text-gray-600">Installed Equipment Value</p>
-              <p className="text-2xl font-bold text-gray-900">{totalAssetValue.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-gray-900">{totalAssetValue.toLocaleString()} Đ</p>
               <p className="text-sm text-gray-500 mt-1">{installedEquipment?.length || 0} items</p>
             </div>
           </div>
@@ -447,7 +456,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">{sale.buyer_name || 'N/A'}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">{sale.tonnage?.toLocaleString()} tons</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_ton?.toLocaleString()} AED</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{sale.price_per_ton?.toLocaleString()} Đ</td>
                           <td className="px-6 py-4">
                             <span className="text-sm font-semibold text-green-600">
                               {sale.total_amount?.toLocaleString()} AED
@@ -625,7 +634,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price (AED) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price (Đ) *</label>
                   <input
                     type="number"
                     name="sale_price"
@@ -717,7 +726,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per Ton (AED) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per Ton (Đ) *</label>
                   <input
                     type="number"
                     name="price_per_ton"
@@ -838,7 +847,7 @@ export default function EquipmentAssetsPage({ params }: { params: Promise<{ id: 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Cost (AED)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Cost (Đ)</label>
                   <input
                     type="number"
                     name="installation_cost"

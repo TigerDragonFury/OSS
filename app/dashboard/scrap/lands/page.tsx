@@ -132,7 +132,7 @@ export default function LandsPage() {
                       {!hidePrices && (
                         <div>
                           <p className="text-sm text-gray-600">Purchase Price</p>
-                          <p className="font-medium">{land.purchase_price?.toLocaleString() || 'N/A'} AED</p>
+                          <p className="font-medium">{land.purchase_price?.toLocaleString() || 'N/A'} Đ</p>
                         </div>
                       )}
                       <div>
@@ -363,7 +363,7 @@ function LandForm({ onClose, land }: { onClose: () => void, land?: any }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

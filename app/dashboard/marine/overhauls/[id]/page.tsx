@@ -359,7 +359,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
               <div className="flex justify-between items-center mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Project Expenses</h3>
-                  <p className="text-sm text-gray-600 mt-1">Total: {totalExpenses.toLocaleString()} AED</p>
+                  <p className="text-sm text-gray-600 mt-1">Total: {totalExpenses.toLocaleString()} Đ</p>
                 </div>
                 <button
                   onClick={() => setShowExpenseForm(true)}
@@ -447,7 +447,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Inventory Used in This Project</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Total Cost: ৳{inventoryUsage?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
+                  Total Cost: Đ{inventoryUsage?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
                 </p>
               </div>
 
@@ -488,10 +488,10 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                             {item.quantity_used} {item.marine_inventory?.unit || 'pcs'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ৳{parseFloat(item.unit_cost || 0).toLocaleString()}
+                            Đ{parseFloat(item.unit_cost || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            ৳{parseFloat(item.total_cost || 0).toLocaleString()}
+                            Đ{parseFloat(item.total_cost || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
@@ -522,7 +522,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Equipment Replaced in This Project</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Total Cost: ৳{equipmentReplacements?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
+                  Total Cost: Đ{equipmentReplacements?.reduce((sum: number, item: any) => sum + (item.total_cost || 0), 0).toLocaleString()}
                 </p>
               </div>
 
@@ -597,13 +597,13 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                             <div>
                               <p className="text-xs font-medium text-gray-500 uppercase">Parts Cost</p>
                               <p className="text-sm font-semibold text-gray-900">
-                                ৳{parseFloat(replacement.replacement_cost || 0).toLocaleString()}
+                                Đ{parseFloat(replacement.replacement_cost || 0).toLocaleString()}
                               </p>
                             </div>
                             <div>
                               <p className="text-xs font-medium text-gray-500 uppercase">Labor Cost</p>
                               <p className="text-sm font-semibold text-gray-900">
-                                ৳{parseFloat(replacement.labor_cost || 0).toLocaleString()}
+                                Đ{parseFloat(replacement.labor_cost || 0).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -611,7 +611,7 @@ export default function OverhaulDetailPage({ params }: { params: Promise<{ id: s
                           <div className="pt-2 border-t">
                             <p className="text-xs font-medium text-gray-500 uppercase">Total Cost</p>
                             <p className="text-lg font-bold text-red-600">
-                              ৳{parseFloat(replacement.total_cost || 0).toLocaleString()}
+                              Đ{parseFloat(replacement.total_cost || 0).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -846,7 +846,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (AED) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (Đ) *</label>
                 <input
                   type="number"
                   required
@@ -877,7 +877,7 @@ function ComponentWorkForm({ projectId, task, onClose }: { projectId: string, ta
               {formData.status === 'completed' && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Actual Cost (AED) <span className="text-xs text-gray-500">- Amount actually paid</span>
+                    Actual Cost (Đ) <span className="text-xs text-gray-500">- Amount actually paid</span>
                   </label>
                   <input
                     type="number"
@@ -1069,7 +1069,7 @@ function ExpenseForm({ projectId, expense, onClose }: { projectId: string, expen
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Đ) *</label>
                 <input
                   type="number"
                   required

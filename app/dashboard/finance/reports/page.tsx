@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DollarSign, Ship, LandPlot, ArrowDownCircle, ArrowUpCircle, Download, Filter, X } from 'lucide-react'
+import { DollarSign, Ship, LandPlot, ArrowDownCircle, ArrowUpCircle, Download, Filter, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/AuthContext'
-import { shouldHideTotals } from '@/lib/auth/rolePermissions'
+import { shouldHideTotals, hasModulePermission } from '@/lib/auth/rolePermissions'
 import Pagination from '@/components/Pagination'
 import * as XLSX from 'xlsx'
 
@@ -14,6 +14,7 @@ interface CashflowEvent {
   amount: number
   description: string
   direction: 'in' | 'out'
+  income_type?: string
 }
 
 export default function ReportsPage() {
@@ -42,6 +43,7 @@ export default function ReportsPage() {
   // Check if user should see all-time totals
   const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
   const hideTotals = shouldHideTotals(userRole, ['finance', 'reports'])
+  const canDelete = hasModulePermission(userRole, ['finance', 'expenses'], 'delete')
 
   useEffect(() => {
     fetchData(formStartDate || appliedStartDate, formEndDate || appliedEndDate)
@@ -82,7 +84,7 @@ export default function ReportsPage() {
       // Cashflow data with applied date range
       const { data: cashIn } = await supabase
         .from('income_records')
-        .select('id, income_date, amount, description, source_type')
+        .select('id, income_date, amount, description, source_type, income_type')
         .gte('income_date', finalStartDate)
         .lte('income_date', finalEndDate)
         .order('income_date', { ascending: false })
@@ -157,6 +159,56 @@ export default function ReportsPage() {
     return <div className="p-6 text-center">Failed to load financial reports</div>
   }
   
+  const handleDeleteIncome = async (id: string, incomeType: string) => {
+    const label = incomeType === 'vessel_rental' ? 'rental income'
+      : incomeType === 'equipment_sale' ? 'equipment sale (this will also restore the equipment as available)'
+      : 'income record'
+    if (!confirm(`Delete this ${label} from reports? This cannot be undone.`)) return
+    const supabaseClient = createClient()
+
+    if (incomeType === 'equipment_sale') {
+      // Get the income record to find the reference_id (= warehouse_sales.id)
+      const { data: incomeRecord } = await supabaseClient
+        .from('income_records')
+        .select('reference_id')
+        .eq('id', id)
+        .single()
+
+      if (incomeRecord?.reference_id) {
+        // Get the warehouse sale to find the equipment id
+        const { data: warehouseSale } = await supabaseClient
+          .from('warehouse_sales')
+          .select('land_equipment_id')
+          .eq('id', incomeRecord.reference_id)
+          .single()
+
+        // Restore equipment status back to in_warehouse
+        if (warehouseSale?.land_equipment_id) {
+          await supabaseClient
+            .from('land_equipment')
+            .update({ status: 'in_warehouse' })
+            .eq('id', warehouseSale.land_equipment_id)
+        }
+
+        // Delete the warehouse sale record
+        await supabaseClient
+          .from('warehouse_sales')
+          .delete()
+          .eq('id', incomeRecord.reference_id)
+      }
+    }
+
+    await supabaseClient.from('income_records').delete().eq('id', id)
+    fetchData(appliedStartDate, appliedEndDate)
+  }
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('Delete this expense from reports? This cannot be undone.')) return
+    const supabaseClient = createClient()
+    await supabaseClient.from('expenses').delete().eq('id', id)
+    fetchData(appliedStartDate, appliedEndDate)
+  }
+
   // Calculate totals
   const totalIncome = data.cashInAll.reduce((sum: number, entry: any) => sum + (entry.amount || 0), 0)
   const totalExpenses = data.cashOutAll.reduce((sum: number, entry: any) => sum + (entry.amount || 0), 0)
@@ -169,7 +221,8 @@ export default function ReportsPage() {
       date: entry.income_date,
       amount: entry.amount || 0,
       description: entry.description || entry.source_type || 'Income',
-      direction: 'in' as const
+      direction: 'in' as const,
+      income_type: entry.income_type,
     })),
     ...data.cashOut.map((entry: any) => ({
       id: entry.id,
@@ -257,7 +310,7 @@ export default function ReportsPage() {
       ['Net Cash', filteredCashNet.toLocaleString(), 'AED'],
       [''],
       ['TRANSACTIONS'],
-      ['Date', 'Description', 'Type', 'Amount (AED)'],
+      ['Date', 'Description', 'Type', 'Amount (Đ)'],
       ...cashflowEvents.map(e => [
         e.date || '',
         e.description,
@@ -481,7 +534,7 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-green-700">Cash In (Period)</p>
-                  <p className="text-2xl font-bold text-green-700 mt-1">{filteredCashInTotal.toLocaleString()} AED</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">{filteredCashInTotal.toLocaleString()} Đ</p>
                 </div>
                 <ArrowDownCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -490,7 +543,7 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-red-700">Cash Out (Period)</p>
-                  <p className="text-2xl font-bold text-red-700 mt-1">{filteredCashOutTotal.toLocaleString()} AED</p>
+                  <p className="text-2xl font-bold text-red-700 mt-1">{filteredCashOutTotal.toLocaleString()} Đ</p>
                 </div>
                 <ArrowUpCircle className="h-8 w-8 text-red-600" />
               </div>
@@ -539,6 +592,7 @@ export default function ReportsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      {canDelete && <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -560,6 +614,21 @@ export default function ReportsPage() {
                         }`}>
                           {entry.direction === 'in' ? '+' : '-'}{entry.amount.toLocaleString()} AED
                         </td>
+                        {canDelete && (
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() =>
+                                entry.direction === 'in'
+                                  ? handleDeleteIncome(entry.id, (entry as any).income_type)
+                                  : handleDeleteExpense(entry.id)
+                              }
+                              className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="Delete / void this entry"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
@@ -13,6 +15,13 @@ export default function SalariesPage() {
   const itemsPerPage = 20
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['hr', 'salaries'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['hr', 'salaries'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['hr', 'salaries'], 'create')
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['salary_payments'],
@@ -87,13 +96,15 @@ export default function SalariesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Salary Payments</h1>
           <p className="text-gray-600 mt-1">Track and manage employee salary payments</p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Record Payment
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Record Payment
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -103,7 +114,7 @@ export default function SalariesPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm font-medium text-gray-600">Total Paid</p>
-          <p className="text-2xl font-bold text-green-600 mt-2">{totalPaid.toLocaleString()} AED</p>
+          <p className="text-2xl font-bold text-green-600 mt-2">{totalPaid.toLocaleString()} Đ</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm font-medium text-gray-600">Active Employees</p>
@@ -179,20 +190,24 @@ export default function SalariesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setEditingPayment(payment)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Edit payment"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(payment)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete payment"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditingPayment(payment)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Edit payment"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(payment)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete payment"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -382,7 +397,7 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base Amount (AED) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Base Amount (Đ) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -394,7 +409,7 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bonuses (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bonuses (Đ)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -405,7 +420,7 @@ function PaymentForm({ payment, onClose, employees }: { payment?: any, onClose: 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deductions (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deductions (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

@@ -188,7 +188,7 @@ export default function VesselMaintenancePage({ params }: { params: Promise<{ id
                           </div>
                           <div>
                             <p className="text-gray-600">Total Cost</p>
-                            <p className="font-semibold text-red-600">{issue.total_cost?.toLocaleString() || 0} AED</p>
+                            <p className="font-semibold text-red-600">{issue.total_cost?.toLocaleString() || 0} Đ</p>
                           </div>
                         </div>
                       </div>
@@ -236,7 +236,7 @@ export default function VesselMaintenancePage({ params }: { params: Promise<{ id
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">{issue.total_cost?.toLocaleString() || 0} AED</p>
+                        <p className="text-sm font-semibold text-gray-900">{issue.total_cost?.toLocaleString() || 0} Đ</p>
                         <p className="text-xs text-gray-500">{issue.actual_hours || 0} hrs</p>
                       </div>
                     </div>
@@ -465,7 +465,7 @@ function MaintenanceIssueForm({ issue, vesselId, employees, onClose }: any) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Labor Cost (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Labor Cost (Đ)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -475,7 +475,7 @@ function MaintenanceIssueForm({ issue, vesselId, employees, onClose }: any) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parts Cost (AED)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parts Cost (Đ)</label>
                 <input
                   type="number"
                   step="0.01"

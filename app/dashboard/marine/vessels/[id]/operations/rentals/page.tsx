@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
 import { Plus, Edit2, Trash2, DollarSign, Calendar, CheckCircle, Clock } from 'lucide-react'
@@ -14,6 +16,13 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
   
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const { user } = useAuth()
+  
+  // Get user role and permissions
+  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  const canEdit = hasModulePermission(userRole, ['marine', 'vessels'], 'edit')
+  const canDelete = hasModulePermission(userRole, ['marine', 'vessels'], 'delete')
+  const canCreate = hasModulePermission(userRole, ['marine', 'vessels'], 'create')
 
   // Vessel Rentals Query
   const { data: vesselRentals } = useQuery({
@@ -105,16 +114,18 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
           <h1 className="text-2xl font-bold text-gray-900">Rentals & Income</h1>
           <p className="text-gray-600">Track vessel rentals, customers, and rental payments</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingItem(null)
-            setShowRentalForm(true)
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5" />
-          New Rental
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => {
+              setEditingItem(null)
+              setShowRentalForm(true)
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="h-5 w-5" />
+            New Rental
+          </button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -144,7 +155,7 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
             <DollarSign className="h-8 w-8 text-emerald-600" />
             <div>
               <p className="text-sm text-gray-600">Total Rental Income</p>
-              <p className="text-2xl font-bold text-emerald-600">{totalRentalIncome.toLocaleString()} AED</p>
+              <p className="text-2xl font-bold text-emerald-600">{totalRentalIncome.toLocaleString()} Đ</p>
             </div>
           </div>
         </div>
@@ -225,25 +236,29 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
                         >
                           <DollarSign className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            setEditingItem(rental)
-                            setShowRentalForm(true)
-                          }}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm('Delete this rental record?')) {
-                              deleteRental.mutate(rental.id)
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => {
+                              setEditingItem(rental)
+                              setShowRentalForm(true)
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => {
+                              if (confirm('Delete this rental record?')) {
+                                deleteRental.mutate(rental.id)
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -305,16 +320,18 @@ export default function RentalsPage({ params }: { params: Promise<{ id: string }
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => {
-                          if (confirm('Delete this payment record?')) {
-                            deletePayment.mutate(payment.id)
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => {
+                            if (confirm('Delete this payment record?')) {
+                              deletePayment.mutate(payment.id)
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

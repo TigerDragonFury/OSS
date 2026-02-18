@@ -169,18 +169,55 @@ export default function TrailersPage() {
         bank_account_id: form.bank_account_id || null,
         notes: form.notes,
       }
+
+      let jobId = form.id
       if (form.id) {
         await supabase.from('haulage_jobs').update(payload).eq('id', form.id)
       } else {
-        await supabase.from('haulage_jobs').insert(payload)
+        const { data } = await supabase.from('haulage_jobs').insert(payload).select('id').single()
+        jobId = data?.id
+      }
+
+      // Sync to income_records: delete old entry then re-insert if paid & client job
+      if (jobId) {
+        await supabase.from('income_records').delete().eq('reference_id', jobId)
+        if (form.payment_status === 'paid' && !form.is_own_goods) {
+          const charge = parseFloat(form.charge_amount) || 0
+          const route = `${form.origin} → ${form.destination}`
+          const incRow: Record<string, unknown> = {
+            income_date: form.job_date,
+            income_type: 'haulage',
+            source_type: 'other',
+            amount: charge,
+            description: `Haulage Job: ${form.client_name || form.client_name} — ${route}${form.cargo_description ? ' (' + form.cargo_description + ')' : ''}`,
+            payment_method: 'transfer',
+            bank_account_id: form.bank_account_id || null,
+            reference_id: jobId,
+          }
+          const { error: incErr } = await supabase.from('income_records').insert([incRow])
+          if (incErr) {
+            const { bank_account_id: _b, reference_id: _r, ...base } = incRow as any
+            await supabase.from('income_records').insert([{ ...base, reference_id: jobId }])
+          }
+        }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['haulage_jobs'] }); setJobModal({ open: false }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['haulage_jobs'] })
+      qc.invalidateQueries({ queryKey: ['income_records'] })
+      setJobModal({ open: false })
+    }
   })
 
   const deleteJob = useMutation({
-    mutationFn: async (id: string) => { await supabase.from('haulage_jobs').delete().eq('id', id) },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['haulage_jobs'] })
+    mutationFn: async (id: string) => {
+      await supabase.from('income_records').delete().eq('reference_id', id)
+      await supabase.from('haulage_jobs').delete().eq('id', id)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['haulage_jobs'] })
+      qc.invalidateQueries({ queryKey: ['income_records'] })
+    }
   })
 
   const saveRental = useMutation({
@@ -197,18 +234,55 @@ export default function TrailersPage() {
         bank_account_id: form.bank_account_id || null,
         notes: form.notes,
       }
+
+      let rentalId = form.id
       if (form.id) {
         await supabase.from('trailer_rentals').update(payload).eq('id', form.id)
       } else {
-        await supabase.from('trailer_rentals').insert(payload)
+        const { data } = await supabase.from('trailer_rentals').insert(payload).select('id').single()
+        rentalId = data?.id
+      }
+
+      // Sync to finance expenses: delete old then insert fresh
+      if (rentalId) {
+        await supabase.from('expenses').delete().eq('reference_id', rentalId)
+        const label = [form.trailer_description, form.rental_company].filter(Boolean).join(' — ')
+        const route = form.origin && form.destination ? ` (${form.origin} → ${form.destination})` : ''
+        const expRow: Record<string, unknown> = {
+          expense_type: 'trailer_rental',
+          category: 'trailer_rental',
+          amount: parseFloat(form.rental_cost),
+          date: form.rental_date,
+          vendor_name: form.rental_company || 'Trailer Rental',
+          payment_method: 'transfer',
+          bank_account_id: form.bank_account_id || null,
+          description: `Trailer Rental: ${label}${route}`,
+          status: 'paid',
+          reference_id: rentalId,
+        }
+        const { error: expErr } = await supabase.from('expenses').insert([expRow])
+        if (expErr) {
+          const { bank_account_id: _b, ...base } = expRow as any
+          await supabase.from('expenses').insert([base])
+        }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['trailer_rentals'] }); setRentalModal({ open: false }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trailer_rentals'] })
+      qc.invalidateQueries({ queryKey: ['expenses'] })
+      setRentalModal({ open: false })
+    }
   })
 
   const deleteRental = useMutation({
-    mutationFn: async (id: string) => { await supabase.from('trailer_rentals').delete().eq('id', id) },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['trailer_rentals'] })
+    mutationFn: async (id: string) => {
+      await supabase.from('expenses').delete().eq('reference_id', id)
+      await supabase.from('trailer_rentals').delete().eq('id', id)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trailer_rentals'] })
+      qc.invalidateQueries({ queryKey: ['expenses'] })
+    }
   })
 
   const saveExpense = useMutation({
@@ -223,18 +297,54 @@ export default function TrailersPage() {
         bank_account_id: form.bank_account_id || null,
         notes: form.notes,
       }
+
+      let expId = form.id
       if (form.id) {
         await supabase.from('trailer_expenses').update(payload).eq('id', form.id)
       } else {
-        await supabase.from('trailer_expenses').insert(payload)
+        const { data } = await supabase.from('trailer_expenses').insert(payload).select('id').single()
+        expId = data?.id
+      }
+
+      // Sync to finance expenses: delete old then insert fresh
+      if (expId) {
+        await supabase.from('expenses').delete().eq('reference_id', expId)
+        const catLabel = EXPENSE_CATEGORIES.find(c => c.value === form.category)?.label || form.category
+        const expRow: Record<string, unknown> = {
+          expense_type: 'trailer_operating',
+          category: form.category,
+          amount: parseFloat(form.amount),
+          date: form.expense_date,
+          vendor_name: form.vendor || 'Trailer Expense',
+          payment_method: 'transfer',
+          bank_account_id: form.bank_account_id || null,
+          description: `Trailer – ${catLabel}: ${form.description}`,
+          status: 'paid',
+          reference_id: expId,
+        }
+        const { error: expErr } = await supabase.from('expenses').insert([expRow])
+        if (expErr) {
+          const { bank_account_id: _b, ...base } = expRow as any
+          await supabase.from('expenses').insert([base])
+        }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['trailer_expenses'] }); setExpenseModal({ open: false }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trailer_expenses'] })
+      qc.invalidateQueries({ queryKey: ['expenses'] })
+      setExpenseModal({ open: false })
+    }
   })
 
   const deleteExpense = useMutation({
-    mutationFn: async (id: string) => { await supabase.from('trailer_expenses').delete().eq('id', id) },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['trailer_expenses'] })
+    mutationFn: async (id: string) => {
+      await supabase.from('expenses').delete().eq('reference_id', id)
+      await supabase.from('trailer_expenses').delete().eq('id', id)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trailer_expenses'] })
+      qc.invalidateQueries({ queryKey: ['expenses'] })
+    }
   })
 
   const saveTrailer = useMutation({

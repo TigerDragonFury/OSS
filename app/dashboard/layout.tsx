@@ -4,13 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { canAccessModule } from '@/lib/auth/rolePermissions'
+import { createClient } from '@/lib/supabase/client'
+import { useQuery } from '@tanstack/react-query'
 import {
   Ship, LandPlot, DollarSign, Users, FileText, Package, TrendingUp, Settings,
   BarChart3, Warehouse, Box, ClipboardList, Wrench, Upload, LogOut, User,
   Calendar, UserCheck, Fuel, Award, Bell, ChevronDown, Building2, RefreshCw,
   Plus, ClipboardCheck, ArrowDownCircle, Anchor, ChevronRight, Truck,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 function NavItem({ href, icon: Icon, label, active }: {
   href: string; icon: any; label: string; active: boolean
@@ -52,10 +54,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
-  const canAccess = (modulePath: string[]) => {
+
+  const supabaseLayout = createClient()
+  const { data: dbRolePerms } = useQuery({
+    queryKey: ['role_permissions_db'],
+    queryFn: async () => {
+      const { data } = await supabaseLayout.from('role_permissions').select('role, permissions')
+      const map: Record<string, Record<string, string>> = {}
+      for (const row of data || []) map[row.role] = row.permissions
+      return map
+    },
+    staleTime: 5 * 60 * 1000, // cache 5 min
+  })
+
+  const canAccess = useCallback((modulePath: string[]) => {
     if (user?.role === 'admin' || user?.roles?.includes('admin')) return true
+    const key = modulePath.join('.')
+    const dbLevel = dbRolePerms?.[userRole]?.[key]
+    if (dbLevel !== undefined) return dbLevel !== 'none'
     return canAccessModule(userRole, modulePath)
-  }
+  }, [user, userRole, dbRolePerms])
 
   const is = (path: string) => pathname === path || pathname?.startsWith(path + '/')
   const exact = (path: string) => pathname === path

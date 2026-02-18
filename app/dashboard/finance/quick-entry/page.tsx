@@ -88,7 +88,7 @@ export default function QuickTransactionsPage() {
   // Expense state
   const [expenseForm, setExpenseForm] = useState({
     expense_type: '',
-    category: 'labor',
+    category: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
     vendor_name: '',
@@ -385,7 +385,7 @@ export default function QuickTransactionsPage() {
       alert('Expense recorded successfully!')
       setExpenseForm({
         expense_type: '',
-        category: 'labor',
+        category: '',
         amount: '',
         date: new Date().toISOString().split('T')[0],
         vendor_name: '',
@@ -796,12 +796,37 @@ export default function QuickTransactionsPage() {
                   onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="labor">Labor</option>
-                  <option value="materials">Materials</option>
-                  <option value="fuel">Fuel</option>
-                  <option value="equipment">Equipment</option>
-                  <option value="utilities">Utilities</option>
-                  <option value="other">Other</option>
+                  <option value="">Select category…</option>
+                  <optgroup label="Operations">
+                    <option value="repairs_maintenance">Repairs &amp; Maintenance</option>
+                    <option value="fuel_energy">Fuel &amp; Energy</option>
+                    <option value="equipment_rental">Equipment Rental &amp; Hire</option>
+                    <option value="direct_materials">Direct Project Materials</option>
+                    <option value="vessel_supplies">Vessel Supplies &amp; Parts</option>
+                  </optgroup>
+                  <optgroup label="People">
+                    <option value="payroll_labor">Payroll &amp; Labor</option>
+                    <option value="staff_meals">Staff Meals &amp; Kitchen</option>
+                    <option value="training">Training &amp; Certification</option>
+                    <option value="uniforms_ppe">Uniforms &amp; PPE</option>
+                  </optgroup>
+                  <optgroup label="Administration">
+                    <option value="office_admin">Office &amp; Admin Expenses</option>
+                    <option value="rent_utilities">Rent &amp; Utilities</option>
+                    <option value="insurance">Insurance</option>
+                    <option value="professional_fees">Professional &amp; Legal Fees</option>
+                    <option value="licenses_permits">Licenses &amp; Permits</option>
+                  </optgroup>
+                  <optgroup label="Finance">
+                    <option value="bank_charges">Bank Charges &amp; Fees</option>
+                    <option value="taxes">Taxes &amp; Duties</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="travel_transport">Travel &amp; Transport</option>
+                    <option value="marketing">Marketing &amp; Advertising</option>
+                    <option value="it_software">IT &amp; Software</option>
+                    <option value="other">Other</option>
+                  </optgroup>
                 </select>
               </div>
               <div>

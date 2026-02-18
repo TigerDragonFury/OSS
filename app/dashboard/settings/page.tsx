@@ -58,6 +58,26 @@ function flattenPermissions(perms: any, prefix = ''): Record<string, any> {
   return out
 }
 
+/** Convert a permission object → level string */
+function toLevel(a: any): string {
+  if (!a?.canView) return 'none'
+  if (a.canDelete) return 'full'
+  if (a.canEdit)   return 'edit'
+  if (a.canCreate) return 'create'
+  return 'view'
+}
+
+/** Convert level string → permission object */
+function fromLevel(level: string) {
+  switch (level) {
+    case 'full':   return { canView: true, canCreate: true, canEdit: true,  canDelete: true  }
+    case 'edit':   return { canView: true, canCreate: true, canEdit: true,  canDelete: false }
+    case 'create': return { canView: true, canCreate: true, canEdit: false, canDelete: false }
+    case 'view':   return { canView: true, canCreate: false, canEdit: false, canDelete: false }
+    default:       return { canView: false, canCreate: false, canEdit: false, canDelete: false }
+  }
+}
+
 export default function SettingsPage() {
   const { user } = useAuth()
   const supabase = createClient()
@@ -173,6 +193,66 @@ export default function SettingsPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all_users'] })
   })
+
+  // ── Role Permissions (editable matrix) ─────────────────────────────────────
+  const { data: dbRolePerms, isLoading: permsLoading } = useQuery({
+    queryKey: ['role_permissions_db'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('role_permissions').select('role, permissions')
+      if (error) console.error('role_permissions fetch error:', error)
+      const map: Record<string, Record<string, string>> = {}
+      for (const row of data || []) map[row.role] = row.permissions
+      return map
+    },
+    enabled: activeTab === 'permissions'
+  })
+
+  /** Working copy of permissions for editing */
+  const [editPerms, setEditPerms] = useState<Record<string, Record<string, string>>>({})
+  const [permsSeeded, setPermsSeeded] = useState(false)
+
+  useEffect(() => {
+    if (permsSeeded) return
+    const moduleKeys = Object.keys(MODULE_LABELS)
+    if (dbRolePerms && Object.keys(dbRolePerms).length > 0) {
+      setEditPerms(dbRolePerms)
+      setPermsSeeded(true)
+    } else if (!permsLoading) {
+      // DB empty – seed from static ROLE_PERMISSIONS
+      const seed: Record<string, Record<string, string>> = {}
+      for (const role of ROLES) {
+        seed[role] = {}
+        const flat = flattenPermissions(ROLE_PERMISSIONS[role] || {})
+        for (const key of moduleKeys) seed[role][key] = toLevel(flat[key])
+      }
+      setEditPerms(seed)
+      setPermsSeeded(true)
+    }
+  }, [dbRolePerms, permsLoading, permsSeeded])
+
+  const setPermLevel = (role: string, key: string, level: string) =>
+    setEditPerms(p => ({ ...p, [role]: { ...p[role], [key]: level } }))
+
+  const [permsSaving, setPermsSaving] = useState(false)
+  const [permsSaved, setPermsSaved] = useState(false)
+
+  const savePermissions = async () => {
+    setPermsSaving(true)
+    try {
+      for (const role of ROLES) {
+        const { error } = await supabase.from('role_permissions')
+          .upsert({ role, permissions: editPerms[role] ?? {}, updated_at: new Date().toISOString() },
+                   { onConflict: 'role' })
+        if (error) throw error
+      }
+      queryClient.invalidateQueries({ queryKey: ['role_permissions_db'] })
+      setPermsSaved(true)
+      setTimeout(() => setPermsSaved(false), 3000)
+    } catch (err: any) {
+      alert(`Failed to save permissions: ${err?.message}`)
+    }
+    setPermsSaving(false)
+  }
 
   const [notifications, setNotifications] = useState({
     email: true, sms: false, push: true,
@@ -480,44 +560,76 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Role Permissions Reference */}
+              {/* Role Permissions – Editable Matrix */}
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Shield className="h-5 w-5 text-gray-500" />
-                  <h3 className="text-base font-semibold text-gray-800">Role Permissions Reference</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-gray-500" />
+                    <h3 className="text-base font-semibold text-gray-800">Role Permissions</h3>
+                  </div>
+                  <button
+                    onClick={savePermissions}
+                    disabled={permsSaving || !isAdmin}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {permsSaved
+                      ? <><Check className="h-4 w-4" /> Saved!</>
+                      : <><Save className="h-4 w-4" /> Save Permissions</>}
+                  </button>
                 </div>
+                {!isAdmin && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Only admins can modify role permissions.
+                  </div>
+                )}
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="bg-gray-800 text-white">
                         <th className="px-4 py-3 text-left font-medium w-44 text-xs uppercase tracking-wide">Module</th>
                         {ROLES.map(r => (
-                          <th key={r} className="px-3 py-3 text-center font-medium text-xs uppercase tracking-wide w-28">{ROLE_LABELS[r]}</th>
+                          <th key={r} className="px-3 py-3 text-center font-medium text-xs uppercase tracking-wide w-32">{ROLE_LABELS[r]}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {Object.entries(MODULE_LABELS).map(([key, label], i) => {
-                        const getAccess = (role: string) => flattenPermissions(ROLE_PERMISSIONS[role] || {})[key]
-                        const badge = (a: any) => {
-                          if (!a?.canView) return <span className="px-2 py-0.5 rounded text-xs bg-red-50 text-red-500 font-medium">No Access</span>
-                          if (a.canCreate && a.canEdit && a.canDelete) return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 font-medium">Full</span>
-                          if (a.canCreate && a.canEdit) return <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700 font-medium">Cr+Edit</span>
-                          if (a.canCreate) return <span className="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 font-medium">Vw+Cr</span>
-                          return <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600 font-medium">View</span>
-                        }
-                        return (
-                          <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-2.5 font-medium text-gray-700 text-xs">{label}</td>
-                            {ROLES.map(r => (
-                              <td key={r} className="px-3 py-2.5 text-center">{badge(getAccess(r))}</td>
-                            ))}
-                          </tr>
-                        )
-                      })}
+                      {Object.entries(MODULE_LABELS).map(([key, label], i) => (
+                        <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-2 font-medium text-gray-700 text-xs">{label}</td>
+                          {ROLES.map(role => {
+                            const level = editPerms[role]?.[key] ?? 'none'
+                            const isAdminRole = role === 'admin'
+                            return (
+                              <td key={role} className="px-3 py-1.5 text-center">
+                                <select
+                                  value={level}
+                                  disabled={!isAdmin || isAdminRole}
+                                  onChange={e => setPermLevel(role, key, e.target.value)}
+                                  className={`w-full text-xs rounded-lg border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
+                                    isAdminRole ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' :
+                                    level === 'full'   ? 'bg-green-50 text-green-700 border-green-200' :
+                                    level === 'edit'   ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                    level === 'create' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                    level === 'view'   ? 'bg-gray-50 text-gray-700 border-gray-200' :
+                                    'bg-red-50 text-red-500 border-red-200'
+                                  }`}
+                                >
+                                  <option value="none">No Access</option>
+                                  <option value="view">View</option>
+                                  <option value="create">View + Create</option>
+                                  <option value="edit">View + Edit</option>
+                                  <option value="full">Full</option>
+                                </select>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="mt-2 text-xs text-gray-400">Changes apply on the user's next login. Admin role always has full access.</p>
               </div>
             </div>
           )}

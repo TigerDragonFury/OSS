@@ -97,48 +97,24 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
     }
   })
 
-  // Delete Inventory Usage — restores stock to marine_inventory
+  // Delete Inventory Usage — DB trigger handles restoring stock automatically
   const deleteInventoryUsage = useMutation({
     mutationFn: async (id: string) => {
-      // 1. Fetch the usage row so we know how much to restore
-      const { data: usage, error: fetchError } = await supabase
+      // Fetch expense_ref before deleting so we can void the linked expense
+      const { data: usage } = await supabase
         .from('inventory_usage')
-        .select('inventory_id, quantity_used, expense_ref')
+        .select('expense_ref')
         .eq('id', id)
         .single()
-      if (fetchError) throw fetchError
 
-      // 2. Restore quantity in marine_inventory
-      if (usage?.inventory_id && usage?.quantity_used) {
-        const { data: inv } = await supabase
-          .from('marine_inventory')
-          .select('quantity, reorder_level')
-          .eq('id', usage.inventory_id)
-          .single()
+      // Delete the row — the DB trigger restores the inventory quantity automatically
+      const { error } = await supabase.from('inventory_usage').delete().eq('id', id)
+      if (error) throw error
 
-        if (inv) {
-          const newQty = (inv.quantity || 0) + usage.quantity_used
-          await supabase
-            .from('marine_inventory')
-            .update({
-              quantity: newQty,
-              status: newQty <= 0 ? 'out_of_stock'
-                     : newQty <= (inv.reorder_level || 10) ? 'low_stock'
-                     : 'in_stock',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', usage.inventory_id)
-        }
-      }
-
-      // 3. Void the auto-created expense if it was linked
+      // Void the auto-created expense if one was linked
       if (usage?.expense_ref) {
         await supabase.from('expenses').delete().eq('id', usage.expense_ref)
       }
-
-      // 4. Delete the usage record
-      const { error } = await supabase.from('inventory_usage').delete().eq('id', id)
-      if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vessel_inventory_usage', resolvedParams.id] })

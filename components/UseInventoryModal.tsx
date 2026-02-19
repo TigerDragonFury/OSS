@@ -96,15 +96,51 @@ export default function UseInventoryModal({
 
   const useInventoryMutation = useMutation({
     mutationFn: async (usageData: any[]) => {
-      const { data, error } = await supabase
+      // 1. Insert all inventory_usage rows
+      const { data: usageRows, error: usageError } = await supabase
         .from('inventory_usage')
         .insert(usageData)
-      if (error) throw error
-      return data
+        .select()
+      if (usageError) throw usageError
+
+      // 2. Auto-create a single expense record for the total cost (if tied to a vessel)
+      if (vesselId) {
+        const totalCost = usageData.reduce((sum, row) => sum + (row.quantity_used * row.unit_cost), 0)
+        const itemNames = selectedItems.map(i => i.equipment_name).join(', ')
+
+        const { data: expRow, error: expError } = await supabase
+          .from('expenses')
+          .insert({
+            description: `Parts Used: ${itemNames}`,
+            expense_type: 'parts_usage',
+            category: 'parts',
+            amount: totalCost,
+            date: new Date().toISOString().split('T')[0],
+            project_id: vesselId,
+            project_type: 'vessel',
+            status: 'paid',
+            payment_method: 'from_inventory',
+          })
+          .select()
+          .single()
+
+        // Soft-link expense back to each usage row (best-effort, ignore error)
+        if (!expError && expRow && usageRows?.length) {
+          const ids = (usageRows as any[]).map((r: any) => r.id)
+          await supabase
+            .from('inventory_usage')
+            .update({ expense_ref: expRow.id })
+            .in('id', ids)
+        }
+      }
+
+      return usageRows
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
       queryClient.invalidateQueries({ queryKey: ['available_inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       setSelectedItems([])
       onSuccess?.()
       onClose()

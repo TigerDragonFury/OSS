@@ -5,7 +5,8 @@ import { useAuth } from '@/lib/auth/AuthContext'
 import { hasModulePermission } from '@/lib/auth/rolePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, use } from 'react'
-import { Plus, Edit2, Trash2, Package, Wrench, Archive } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, Wrench, Archive, RotateCcw, CheckCircle, AlertTriangle } from 'lucide-react'
+import React from 'react'
 import UseInventoryModal from '@/components/UseInventoryModal'
 import ReplaceEquipmentModal from '@/components/ReplaceEquipmentModal'
 
@@ -15,6 +16,8 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
   const [showUseInventory, setShowUseInventory] = useState(false)
   const [showReplaceEquipment, setShowReplaceEquipment] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
+  const [returningReplacement, setReturningReplacement] = useState<any>(null)
+  const [returnReason, setReturnReason] = useState('')
   
   const queryClient = useQueryClient()
   const supabase = createClient()
@@ -119,6 +122,58 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vessel_equipment_replacements', resolvedParams.id] })
+    }
+  })
+
+  // Return Part (mismatch / wrong fit) — restores inventory quantity & voids expense
+  const returnPartMutation = useMutation({
+    mutationFn: async ({ replacement, reason }: { replacement: any; reason: string }) => {
+      // 1. Restore inventory stock if the new part came from marine_inventory
+      if (replacement.inventory_id && replacement.new_equipment_source === 'inventory') {
+        const { data: inv } = await supabase
+          .from('marine_inventory')
+          .select('quantity, reorder_level')
+          .eq('id', replacement.inventory_id)
+          .single()
+        if (inv) {
+          const newQty = (inv.quantity || 0) + 1
+          await supabase
+            .from('marine_inventory')
+            .update({
+              quantity: newQty,
+              status: newQty <= 0 ? 'out_of_stock' : newQty <= (inv.reorder_level || 10) ? 'low_stock' : 'in_stock',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', replacement.inventory_id)
+        }
+      }
+
+      // 2. Mark replacement as returned
+      await supabase
+        .from('equipment_replacements')
+        .update({
+          status: 'returned',
+          return_reason: reason,
+          returned_at: new Date().toISOString(),
+        })
+        .eq('id', replacement.id)
+
+      // 3. Void the auto-created expense if it exists
+      if (replacement.expense_ref) {
+        await supabase.from('expenses').delete().eq('id', replacement.expense_ref)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vessel_equipment_replacements', resolvedParams.id] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['available_inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      setReturningReplacement(null)
+      setReturnReason('')
+    },
+    onError: (error: any) => {
+      alert(`Failed to return part: ${error.message}`)
     }
   })
 
@@ -329,54 +384,128 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Replacement Cost</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Labor Cost</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {equipmentReplacements?.map((replacement) => (
-                      <tr key={replacement.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {new Date(replacement.replacement_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{replacement.old_equipment_name || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">{replacement.reason || 'N/A'}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{replacement.marine_inventory?.equipment_name || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">{replacement.warehouses?.name || 'N/A'}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {replacement.vessel_overhaul_projects?.project_name || 'General'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {(replacement.replacement_cost || 0).toLocaleString()} AED
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {(replacement.labor_cost || 0).toLocaleString()} AED
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-red-600">
-                            {((replacement. replacement_cost || 0) + (replacement.labor_cost || 0)).toLocaleString()} AED
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => {
-                              if (confirm('Delete this replacement record?')) {
-                                deleteReplacement.mutate(replacement.id)
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={replacement.id}>
+                        <tr key={replacement.id} className={`hover:bg-gray-50 ${replacement.status === 'returned' ? 'opacity-60 bg-gray-50' : ''}`}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {new Date(replacement.replacement_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{replacement.old_equipment_name || 'N/A'}</p>
+                              <p className="text-sm text-gray-500">{replacement.reason || replacement.failure_reason || 'N/A'}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{replacement.marine_inventory?.equipment_name || replacement.new_equipment_source || 'N/A'}</p>
+                              <p className="text-sm text-gray-500">{replacement.warehouses?.name || '—'}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {replacement.vessel_overhaul_projects?.project_name || 'General'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {(replacement.replacement_cost || 0).toLocaleString()} Đ
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {(replacement.labor_cost || 0).toLocaleString()} Đ
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-semibold text-red-600">
+                              {((replacement.replacement_cost || 0) + (replacement.labor_cost || 0)).toLocaleString()} Đ
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {replacement.status === 'returned' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                <RotateCcw className="h-3 w-3" />
+                                Returned
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3" />
+                                Confirmed
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              {/* Return Part button — only for confirmed replacements from inventory */}
+                              {(!replacement.status || replacement.status === 'confirmed') && replacement.inventory_id && (
+                                <button
+                                  onClick={() => {
+                                    setReturningReplacement(replacement)
+                                    setReturnReason('')
+                                  }}
+                                  className="flex items-center gap-1 text-xs px-2 py-1 text-orange-700 bg-orange-50 hover:bg-orange-100 rounded border border-orange-200"
+                                  title="Return part to inventory (mismatch / wrong fit)"
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  Return Part
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this replacement record?')) {
+                                      deleteReplacement.mutate(replacement.id)
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Inline return reason form */}
+                        {returningReplacement?.id === replacement.id && (
+                          <tr key={`${replacement.id}-return`} className="bg-orange-50">
+                            <td colSpan={9} className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-orange-800 mb-2">
+                                    Return "{replacement.marine_inventory?.equipment_name}" to inventory (mismatch / wrong fit)
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Reason for return (e.g. wrong size, incompatible)..."
+                                      value={returnReason}
+                                      onChange={e => setReturnReason(e.target.value)}
+                                      className="flex-1 px-3 py-1.5 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-400"
+                                    />
+                                    <button
+                                      disabled={!returnReason.trim() || returnPartMutation.isPending}
+                                      onClick={() => returnPartMutation.mutate({ replacement, reason: returnReason })}
+                                      className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    >
+                                      {returnPartMutation.isPending ? 'Returning...' : 'Confirm Return'}
+                                    </button>
+                                    <button
+                                      onClick={() => setReturningReplacement(null)}
+                                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    This will restore 1 unit to marine inventory and void the associated expense.
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

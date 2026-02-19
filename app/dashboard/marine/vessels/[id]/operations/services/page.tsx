@@ -181,15 +181,29 @@ export default function ServiceSchedulesPage({ params }: { params: Promise<{ id:
                         <button
                           onClick={async () => {
                             if (confirm('Mark this service as completed?')) {
+                              const today = new Date().toISOString().split('T')[0]
                               const { error } = await supabase
                                 .from('vessel_service_schedules')
-                                .update({ 
-                                  last_service_date: new Date().toISOString().split('T')[0],
-                                  status: 'completed'
-                                })
+                                .update({ last_service_date: today, status: 'completed' })
                                 .eq('id', schedule.id)
                               if (!error) {
+                                // Auto-create expense if estimated cost exists
+                                if (schedule.estimated_cost > 0) {
+                                  await supabase.from('expenses').insert({
+                                    description: `Service Completed: ${schedule.service_type}`,
+                                    expense_type: 'service',
+                                    category: 'maintenance',
+                                    amount: schedule.estimated_cost,
+                                    date: today,
+                                    project_id: vessel.id,
+                                    project_type: 'vessel',
+                                    status: 'paid',
+                                    vendor_name: schedule.service_provider || null,
+                                  })
+                                }
                                 queryClient.invalidateQueries({ queryKey: ['service_schedules'] })
+                                queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+                                queryClient.invalidateQueries({ queryKey: ['expenses'] })
                               }
                             }
                           }}
@@ -277,15 +291,28 @@ export default function ServiceSchedulesPage({ params }: { params: Promise<{ id:
                         <button
                           onClick={async () => {
                             if (confirm('Mark this service as completed?')) {
+                              const today = new Date().toISOString().split('T')[0]
                               const { error } = await supabase
                                 .from('vessel_service_schedules')
-                                .update({ 
-                                  last_service_date: new Date().toISOString().split('T')[0],
-                                  status: 'completed'
-                                })
+                                .update({ last_service_date: today, status: 'completed' })
                                 .eq('id', schedule.id)
                               if (!error) {
+                                if (schedule.estimated_cost > 0) {
+                                  await supabase.from('expenses').insert({
+                                    description: `Service Completed: ${schedule.service_type}`,
+                                    expense_type: 'service',
+                                    category: 'maintenance',
+                                    amount: schedule.estimated_cost,
+                                    date: today,
+                                    project_id: vessel.id,
+                                    project_type: 'vessel',
+                                    status: 'paid',
+                                    vendor_name: schedule.service_provider || null,
+                                  })
+                                }
                                 queryClient.invalidateQueries({ queryKey: ['service_schedules'] })
+                                queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+                                queryClient.invalidateQueries({ queryKey: ['expenses'] })
                               }
                             }
                           }}
@@ -355,10 +382,12 @@ function ServiceScheduleForm({ schedule, vesselId, onClose }: any) {
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
+      const isNewCompletion = data.status === 'completed' && (!schedule || schedule.status !== 'completed')
+
       if (schedule) {
         const { error } = await supabase
           .from('vessel_service_schedules')
-          .update(data)
+          .update({ ...data, last_service_date: isNewCompletion ? new Date().toISOString().split('T')[0] : data.last_service_date })
           .eq('id', schedule.id)
         if (error) throw error
       } else {
@@ -367,9 +396,26 @@ function ServiceScheduleForm({ schedule, vesselId, onClose }: any) {
           .insert([{ ...data, vessel_id: vesselId }])
         if (error) throw error
       }
+
+      // Auto-create expense when completing a schedule with a cost
+      if (isNewCompletion && parseFloat(data.estimated_cost) > 0) {
+        await supabase.from('expenses').insert({
+          description: `Service Completed: ${data.service_type}`,
+          expense_type: 'service',
+          category: 'maintenance',
+          amount: parseFloat(data.estimated_cost),
+          date: new Date().toISOString().split('T')[0],
+          project_id: vesselId,
+          project_type: 'vessel',
+          status: 'paid',
+          vendor_name: data.service_provider || null,
+        })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service_schedules', vesselId] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       onClose()
     }
   })

@@ -71,7 +71,7 @@ export default function ReplaceEquipmentModal({
 
   const replaceEquipmentMutation = useMutation({
     mutationFn: async (replacementData: any) => {
-      // First, create the equipment replacement record
+      // 1. Create the equipment replacement record
       const { data: replacement, error: replError } = await supabase
         .from('equipment_replacements')
         .insert({
@@ -88,24 +88,62 @@ export default function ReplaceEquipmentModal({
           warehouse_id: replacementData.warehouse_id || null,
           maintenance_schedule_id: maintenanceScheduleId || null,
           overhaul_project_id: overhaulProjectId || null,
-          notes: replacementData.notes
+          notes: replacementData.notes,
+          status: 'confirmed',
         })
         .select()
         .single()
 
       if (replError) throw replError
 
-      // If old equipment sent to warehouse, optionally create a land_equipment record
+      // 2. Auto-create expense for the total replacement + labor cost
+      const totalCost = (replacementData.replacement_cost || 0) + (replacementData.labor_cost || 0)
+      if (totalCost > 0) {
+        const newPartLabel = replacementData.new_equipment_source === 'inventory'
+          ? (inventory?.find((i: any) => i.id === replacementData.inventory_id)?.equipment_name || 'from inventory')
+          : replacementData.new_equipment_source === 'purchase'
+          ? 'new purchase'
+          : 'repaired'
+
+        const { data: expRow } = await supabase
+          .from('expenses')
+          .insert({
+            description: `Equipment Replacement: ${replacementData.old_equipment_name} → ${newPartLabel}`,
+            expense_type: 'equipment_replacement',
+            category: 'maintenance',
+            amount: totalCost,
+            date: replacementData.failure_date || new Date().toISOString().split('T')[0],
+            project_id: vesselId,
+            project_type: 'vessel',
+            status: 'paid',
+            payment_method: replacementData.new_equipment_source === 'inventory' ? 'from_inventory' : 'cash',
+            vendor_name: replacementData.notes || null,
+          })
+          .select()
+          .single()
+
+        // Soft-link expense back to replacement record (best-effort)
+        if (expRow) {
+          await supabase
+            .from('equipment_replacements')
+            .update({ expense_ref: expRow.id })
+            .eq('id', replacement.id)
+        }
+      }
+
+      // 3. If old equipment sent to warehouse → create land_equipment record
       if (replacementData.old_equipment_disposition === 'sent_to_warehouse' && replacementData.warehouse_id) {
         await supabase
           .from('land_equipment')
           .insert({
             equipment_name: replacementData.old_equipment_name,
             warehouse_id: replacementData.warehouse_id,
+            item_type: 'equipment',
             condition: 'poor',
             status: 'in_warehouse',
-            estimated_value: replacementData.replacement_cost * 0.1, // 10% of replacement cost as salvage value
-            description: `Removed from ${vesselName}: ${replacementData.failure_reason}`
+            acquisition_source: 'transfer',
+            estimated_value: Math.round((replacementData.replacement_cost || 0) * 0.1), // 10% salvage
+            description: `Removed from ${vesselName}: ${replacementData.failure_reason}`,
           })
       }
 
@@ -115,6 +153,8 @@ export default function ReplaceEquipmentModal({
       queryClient.invalidateQueries({ queryKey: ['marine_inventory'] })
       queryClient.invalidateQueries({ queryKey: ['equipment_replacements'] })
       queryClient.invalidateQueries({ queryKey: ['land_equipment'] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       setFormData({
         old_equipment_name: '',
         failure_reason: '',

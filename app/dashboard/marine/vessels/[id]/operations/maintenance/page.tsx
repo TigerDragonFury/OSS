@@ -317,6 +317,13 @@ function MaintenanceIssueForm({ issue, vesselId, employees, onClose }: any) {
         data.vessel_id = vesselId
       }
 
+      // Set completed_date when marking as completed
+      if (data.status === 'completed' && (!issue || issue.status !== 'completed')) {
+        data.completed_date = new Date().toISOString().split('T')[0]
+        data.total_cost = (parseFloat(data.labor_cost) || 0) + (parseFloat(data.parts_cost) || 0)
+      }
+
+      let savedId = issue?.id
       if (issue) {
         const { error } = await supabase
           .from('vessel_maintenance_issues')
@@ -324,14 +331,35 @@ function MaintenanceIssueForm({ issue, vesselId, employees, onClose }: any) {
           .eq('id', issue.id)
         if (error) throw error
       } else {
-        const { error } = await supabase
+        const { data: newRow, error } = await supabase
           .from('vessel_maintenance_issues')
           .insert([data])
+          .select()
+          .single()
         if (error) throw error
+        savedId = newRow?.id
+      }
+
+      // Auto-create expense when completing a maintenance issue with a cost
+      const totalCost = (parseFloat(data.labor_cost) || 0) + (parseFloat(data.parts_cost) || 0)
+      const isNewCompletion = data.status === 'completed' && (!issue || issue.status !== 'completed')
+      if (isNewCompletion && totalCost > 0) {
+        await supabase.from('expenses').insert({
+          description: `Maintenance: ${data.title || issue?.title}`,
+          expense_type: 'maintenance',
+          category: 'maintenance',
+          amount: totalCost,
+          date: data.completed_date || new Date().toISOString().split('T')[0],
+          project_id: vesselId,
+          project_type: 'vessel',
+          status: 'paid',
+        })
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maintenance_issues', vesselId] })
+      queryClient.invalidateQueries({ queryKey: ['vessel_all_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       onClose()
     }
   })

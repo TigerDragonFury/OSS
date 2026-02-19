@@ -54,8 +54,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showNotifications, setShowNotifications] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const userRole = user?.role || user?.roles?.[0] || 'storekeeper'
-  const isAdmin = user?.role === 'admin' || user?.roles?.includes('admin')
+  const rawRole = user?.role || user?.roles?.[0] || 'storekeeper'
+  // Normalize legacy/alternate role names
+  const ROLE_ALIASES: Record<string, string> = { operator: 'storekeeper' }
+  const userRole = ROLE_ALIASES[rawRole] ?? rawRole
+  const isAdmin = rawRole === 'admin' || user?.roles?.includes('admin')
 
   const supabaseLayout = createClient()
   const { data: dbRolePerms } = useQuery({
@@ -88,15 +91,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (loading || !user) return
     if (pathname !== '/dashboard') return
-    const role = user?.role || user?.roles?.[0] || ''
-    if (role === 'admin') return
+    if (userRole === 'admin') return
     const redirectMap: Record<string, string> = {
       accountant:  '/dashboard/finance/quick-entry',
       hr:          '/dashboard/hr/employees',
       storekeeper: '/dashboard/marine/inventory',
     }
-    router.replace(redirectMap[role] ?? '/dashboard/finance/quick-entry')
-  }, [loading, user, pathname, router])
+    router.replace(redirectMap[userRole] ?? '/dashboard/marine/inventory')
+  }, [loading, user, userRole, pathname, router])
 
   const is = (path: string) => pathname === path || pathname?.startsWith(path + '/')
   const exact = (path: string) => pathname === path

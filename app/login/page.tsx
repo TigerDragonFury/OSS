@@ -60,13 +60,16 @@ export default function LoginPage() {
       } catch (_) {}
 
       const role = user.role || 'viewer'
+      // Normalize legacy/alternate role names
+      const ROLE_ALIASES: Record<string, string> = { operator: 'storekeeper' }
+      const normalizedRole = ROLE_ALIASES[role] ?? role
       const redirectMap: Record<string, string> = {
         admin:       '/dashboard',
         accountant:  '/dashboard/finance/quick-entry',
         hr:          '/dashboard/hr/employees',
         storekeeper: '/dashboard/marine/inventory',
       }
-      router.push(redirectMap[role] ?? '/dashboard/finance/quick-entry')
+      router.push(redirectMap[normalizedRole] ?? '/dashboard/marine/inventory')
     } catch (err: any) {
       setError(err.message || 'An error occurred during login')
     } finally {

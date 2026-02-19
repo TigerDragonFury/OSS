@@ -58,7 +58,43 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Confirm indexes
+-- =====================================================
+-- 6. RESTORE INVENTORY ON USAGE DELETE (safety-net trigger)
+-- =====================================================
+-- When an inventory_usage row is deleted, add the quantity back
+-- This fires regardless of where the delete originates (UI, Supabase dashboard, etc.)
+CREATE OR REPLACE FUNCTION restore_inventory_on_usage_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Restore quantity
+    UPDATE marine_inventory
+    SET
+        quantity   = quantity + OLD.quantity_used,
+        updated_at = NOW()
+    WHERE id = OLD.inventory_id;
+
+    -- Recalculate status
+    UPDATE marine_inventory
+    SET status = CASE
+        WHEN quantity <= 0                   THEN 'out_of_stock'
+        WHEN quantity <= COALESCE(reorder_level, 10) THEN 'low_stock'
+        ELSE 'in_stock'
+    END
+    WHERE id = OLD.inventory_id;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_restore_inventory_on_usage_delete ON inventory_usage;
+CREATE TRIGGER trigger_restore_inventory_on_usage_delete
+    AFTER DELETE ON inventory_usage
+    FOR EACH ROW
+    EXECUTE FUNCTION restore_inventory_on_usage_delete();
+
+-- =====================================================
+-- 7. Confirm indexes
+-- =====================================================
 CREATE INDEX IF NOT EXISTS idx_equipment_replacements_status ON equipment_replacements(status);
 CREATE INDEX IF NOT EXISTS idx_equipment_replacements_vessel ON equipment_replacements(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_usage_expense_ref ON inventory_usage(expense_ref);

@@ -67,12 +67,30 @@ export default function EquipmentPage() {
   const soldCount      = equipment?.filter(e => e.status === 'sold').length || 0
 
   const TYPE_COLORS: Record<string, string> = {
-    equipment:  'bg-blue-100 text-blue-700',
-    spare_part: 'bg-purple-100 text-purple-700',
-    tool:       'bg-orange-100 text-orange-700',
-    material:   'bg-yellow-100 text-yellow-700',
-    vehicle:    'bg-teal-100 text-teal-700',
-    other:      'bg-gray-100 text-gray-700',
+    // Marine
+    anchor:        'bg-sky-100 text-sky-700',
+    chain:         'bg-sky-200 text-sky-800',
+    rope:          'bg-cyan-100 text-cyan-700',
+    buoy:          'bg-cyan-200 text-cyan-800',
+    life_saving:   'bg-red-100 text-red-700',
+    navigation:    'bg-indigo-100 text-indigo-700',
+    fire_fighting: 'bg-red-200 text-red-800',
+    diving:        'bg-blue-200 text-blue-800',
+    deck_equipment:'bg-slate-100 text-slate-700',
+    engine_part:   'bg-zinc-100 text-zinc-700',
+    pump:          'bg-violet-100 text-violet-700',
+    valve:         'bg-fuchsia-100 text-fuchsia-700',
+    electrical:    'bg-amber-100 text-amber-700',
+    paint:         'bg-lime-100 text-lime-700',
+    fuel_lubricant:'bg-orange-200 text-orange-800',
+    // General
+    equipment:    'bg-blue-100 text-blue-700',
+    spare_part:   'bg-purple-100 text-purple-700',
+    tool:         'bg-orange-100 text-orange-700',
+    material:     'bg-yellow-100 text-yellow-700',
+    vehicle:      'bg-teal-100 text-teal-700',
+    consumable:   'bg-green-100 text-green-700',
+    other:        'bg-gray-100 text-gray-700',
   }
 
   return (
@@ -128,12 +146,32 @@ export default function EquipmentPage() {
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
         >
           <option value="all">All Types</option>
-          <option value="equipment">Equipment</option>
-          <option value="spare_part">Spare Part</option>
-          <option value="tool">Tool</option>
-          <option value="material">Material</option>
-          <option value="vehicle">Vehicle</option>
-          <option value="other">Other</option>
+          <optgroup label="Marine">
+            <option value="anchor">Anchor</option>
+            <option value="chain">Chain / Mooring Chain</option>
+            <option value="rope">Rope / Mooring Line</option>
+            <option value="buoy">Buoy / Float</option>
+            <option value="life_saving">Life Saving Equipment</option>
+            <option value="navigation">Navigation Equipment</option>
+            <option value="fire_fighting">Fire Fighting Equipment</option>
+            <option value="diving">Diving Equipment</option>
+            <option value="deck_equipment">Deck Equipment</option>
+            <option value="engine_part">Engine / Machinery Part</option>
+            <option value="pump">Pump</option>
+            <option value="valve">Valve / Fitting</option>
+            <option value="electrical">Electrical / Electronics</option>
+            <option value="paint">Paint / Coating</option>
+            <option value="fuel_lubricant">Fuel / Lubricant</option>
+          </optgroup>
+          <optgroup label="General">
+            <option value="equipment">Equipment</option>
+            <option value="spare_part">Spare Part</option>
+            <option value="tool">Tool</option>
+            <option value="material">Material</option>
+            <option value="vehicle">Vehicle</option>
+            <option value="consumable">Consumable</option>
+            <option value="other">Other</option>
+          </optgroup>
         </select>
       </div>
 
@@ -168,7 +206,7 @@ export default function EquipmentPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${TYPE_COLORS[item.item_type] || 'bg-gray-100 text-gray-700'}`}>
-                      {item.item_type?.replace('_', ' ') || 'equipment'}
+                      {item.item_type?.replace(/_/g, ' ') || 'equipment'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -346,12 +384,32 @@ function EquipmentForm({
               <div>
                 <label className={labelCls}>Item Type</label>
                 <select value={formData.item_type} onChange={e => set('item_type', e.target.value)} className={inputCls}>
-                  <option value="equipment">Equipment</option>
-                  <option value="spare_part">Spare Part</option>
-                  <option value="tool">Tool</option>
-                  <option value="material">Material</option>
-                  <option value="vehicle">Vehicle</option>
-                  <option value="other">Other</option>
+                  <optgroup label="Marine">
+                    <option value="anchor">Anchor</option>
+                    <option value="chain">Chain / Mooring Chain</option>
+                    <option value="rope">Rope / Mooring Line</option>
+                    <option value="buoy">Buoy / Float</option>
+                    <option value="life_saving">Life Saving Equipment</option>
+                    <option value="navigation">Navigation Equipment</option>
+                    <option value="fire_fighting">Fire Fighting Equipment</option>
+                    <option value="diving">Diving Equipment</option>
+                    <option value="deck_equipment">Deck Equipment</option>
+                    <option value="engine_part">Engine / Machinery Part</option>
+                    <option value="pump">Pump</option>
+                    <option value="valve">Valve / Fitting</option>
+                    <option value="electrical">Electrical / Electronics</option>
+                    <option value="paint">Paint / Coating</option>
+                    <option value="fuel_lubricant">Fuel / Lubricant</option>
+                  </optgroup>
+                  <optgroup label="General">
+                    <option value="equipment">Equipment (machine / unit)</option>
+                    <option value="spare_part">Spare Part</option>
+                    <option value="tool">Tool / Hand Tool</option>
+                    <option value="material">Raw Material</option>
+                    <option value="vehicle">Vehicle</option>
+                    <option value="consumable">Consumable</option>
+                    <option value="other">Other</option>
+                  </optgroup>
                 </select>
               </div>
             </div>
